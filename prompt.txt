@@ -1,0 +1,291 @@
+Buatkan project backend modern menggunakan Golang dengan arsitektur modular dan scalable menggunakan framework Fiber pada folder ini.
+
+Backend ini akan digunakan sebagai REST API untuk aplikasi frontend terpisah.
+
+## Tech Stack
+
+* Golang
+* Fiber v2
+* PostgreSQL
+* GORM
+* JWT Authentication
+* Clean Architecture
+* Repository Pattern
+* Environment Variables (.env)
+* Logger Middleware
+* Validation
+* Auto Migration
+
+---
+
+# Tujuan Project
+
+Buat backend production-ready dengan struktur modular yang rapi, mudah dikembangkan, dan mengikuti best practice Golang.
+
+---
+
+# Struktur Folder yang Diinginkan
+
+```txt
+backend/
+│
+├── cmd/
+│   └── server/
+│       └── main.go
+│
+├── configs/
+│   ├── app.go
+│   ├── database.go
+│   └── jwt.go
+│
+├── internal/
+│   ├── modules/
+│   │
+│   │   ├── auth/
+│   │   │   ├── controller/
+│   │   │   ├── service/
+│   │   │   ├── repository/
+│   │   │   ├── model/
+│   │   │   ├── dto/
+│   │   │   ├── routes/
+│   │   │   └── validator/
+│   │   │
+│   │   ├── user/
+│   │   │   ├── controller/
+│   │   │   ├── service/
+│   │   │   ├── repository/
+│   │   │   ├── model/
+│   │   │   ├── dto/
+│   │   │   ├── routes/
+│   │   │   └── validator/
+│   │
+│   ├── middleware/
+│   ├── database/
+│   ├── helpers/
+│   ├── utils/
+│   └── constants/
+│
+├── migrations/
+│
+├── pkg/
+│
+├── docs/
+│
+├── .env
+├── .gitignore
+├── go.mod
+└── README.md
+```
+
+---
+
+# Fitur yang Harus Dibuat
+
+## Core Setup
+
+* Setup Fiber server
+* Graceful shutdown
+* Environment configuration menggunakan godotenv
+* Global error handler
+* Logger middleware
+* CORS middleware
+* Request ID middleware
+* Health check endpoint
+
+---
+
+# Database
+
+Gunakan:
+
+* PostgreSQL
+* GORM ORM
+* Auto migration
+
+Buat konfigurasi database reusable.
+
+---
+
+# Authentication
+
+Gunakan:
+
+* JWT Authentication
+* Access Token
+* Password hashing menggunakan bcrypt
+
+Buat fitur:
+
+* Register
+* Login
+* Get current user profile
+
+---
+
+# User Module
+
+Buat CRUD lengkap:
+
+* Create User
+* Get All Users
+* Get User By ID
+* Update User
+* Delete User
+
+---
+
+# Validasi
+
+Gunakan:
+
+* go-playground/validator
+
+Buat validasi:
+
+* email wajib valid
+* password minimal 6 karakter
+* nama wajib diisi
+
+---
+
+# Response Format
+
+Gunakan format response JSON konsisten seperti:
+
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": {}
+}
+```
+
+Untuk error:
+
+```json
+{
+  "success": false,
+  "message": "Validation error",
+  "errors": []
+}
+```
+
+---
+
+# Middleware
+
+Buat middleware:
+
+* JWT Auth Middleware
+* Role Middleware
+* Logger Middleware
+* Recover Middleware
+
+---
+
+# Routing
+
+Gunakan modular routing.
+
+Contoh:
+
+```txt
+/api
+  /auth
+  /users
+```
+
+---
+
+# Dependensi yang Harus Diinstall
+
+Gunakan command berikut:
+
+```bash
+go mod init backend
+
+go get github.com/gofiber/fiber/v2
+go get github.com/gofiber/fiber/v2/middleware/logger
+go get github.com/gofiber/fiber/v2/middleware/cors
+go get github.com/gofiber/fiber/v2/middleware/recover
+
+go get gorm.io/gorm
+go get gorm.io/driver/postgres
+
+go get github.com/golang-jwt/jwt/v5
+go get golang.org/x/crypto/bcrypt
+
+go get github.com/joho/godotenv
+go get github.com/go-playground/validator/v10
+
+go get github.com/google/uuid
+go get github.com/rs/zerolog
+```
+
+---
+
+# Konfigurasi Environment
+
+Buat file `.env`
+
+```env
+APP_NAME=Fiber Backend
+APP_PORT=3000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=fiber_backend
+
+JWT_SECRET=supersecretkey
+JWT_EXPIRED=72h
+```
+
+---
+
+
+
+Service:
+
+* app
+* postgres
+
+---
+
+# README
+
+Buat README lengkap berisi:
+
+* cara install
+* cara menjalankan project
+* struktur project
+* daftar endpoint API
+
+---
+
+# Coding Style
+
+Gunakan:
+
+* clean code
+* SOLID principle
+* repository pattern
+* dependency injection sederhana
+* modular architecture
+* pisahkan controller, service, repository, dto, model
+
+---
+
+# Output yang Diharapkan
+
+Generate:
+
+* seluruh struktur folder
+* boilerplate code lengkap
+* konfigurasi database
+* JWT middleware
+* contoh CRUD User lengkap
+* auth module lengkap
+* README lengkap
+* kode harus langsung bisa dijalankan tanpa banyak modifikasi
