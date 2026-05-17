@@ -8,9 +8,10 @@ import (
 )
 
 type AppConfig struct {
-	Name string
-	Port int
-	Env  string
+	Name        string
+	Port        int
+	Env         string
+	FrontendURL string
 }
 
 func LoadEnv() error {
@@ -19,9 +20,10 @@ func LoadEnv() error {
 
 func GetAppConfig() *AppConfig {
 	return &AppConfig{
-		Name: getEnv("APP_NAME", "Fiber Backend API"),
-		Port: getEnvInt("APP_PORT", 3000),
-		Env:  getEnv("APP_ENV", "development"),
+		Name:        getEnv("APP_NAME", "Fiber Backend API"),
+		Port:        getEnvInt("APP_PORT", 3000),
+		Env:         getEnv("APP_ENV", "development"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
 	}
 }
 
