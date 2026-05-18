@@ -70,6 +70,8 @@ func setupRoutes(app *fiber.App) {
 		})
 	})
 
+	app.Static("/uploads", "./uploads")
+
 	authroutes.SetupAuthRoutes(app, database.DB)
 	userroutes.SetupUserRoutes(app, database.DB)
 	mapelroutes.SetupMapelRoutes(app, database.DB)

@@ -44,6 +44,7 @@ curl -X GET "http://localhost:3000/api/soal?page=1&page_size=10"
       {
         "id": "abc123def456",
         "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
+        "no_soal": 1,
         "soal": "Berapa hasil dari 2 + 2?",
         "gambar_soal": "https://example.com/soal.jpg",
         "opsi_a": "3",
@@ -102,6 +103,7 @@ curl -X GET "http://localhost:3000/api/soal/bank/5112e444-25d8-4ca6-859f-3d24099
       {
         "id": "abc123def456",
         "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
+        "no_soal": 1,
         "soal": "Berapa hasil dari 2 + 2?",
         "gambar_soal": "https://example.com/soal.jpg",
         "opsi_a": "3",
@@ -152,6 +154,7 @@ curl -X GET "http://localhost:3000/api/soal/abc123def456"
   "data": {
     "id": "abc123def456",
     "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
+    "no_soal": 1,
     "soal": "Berapa hasil dari 2 + 2?",
     "gambar_soal": "https://example.com/soal.jpg",
     "opsi_a": "3",
@@ -184,7 +187,7 @@ curl -X GET "http://localhost:3000/api/soal/abc123def456"
 
 ---
 
-### 4️⃣ POST - Buat Soal Baru
+### 4️⃣ POST - Buat Soal Baru (dengan Upload Gambar)
 
 **Endpoint:** `POST /api/soal`
 
@@ -192,69 +195,54 @@ curl -X GET "http://localhost:3000/api/soal/abc123def456"
 
 **Request Headers:**
 ```
-Content-Type: application/json
+Content-Type: multipart/form-data
 Authorization: Bearer <JWT_TOKEN>
 ```
 
-**Request Body:**
-```json
-{
-  "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
-  "soal": "Berapa hasil dari 2 + 2?",
-  "gambar_soal": "https://example.com/soal.jpg",
-  "opsi_a": "3",
-  "opsi_b": "4",
-  "opsi_c": "5",
-  "opsi_d": "6",
-  "opsi_e": "7",
-  "gambar_a": "https://example.com/a.jpg",
-  "gambar_b": "https://example.com/b.jpg",
-  "gambar_c": "https://example.com/c.jpg",
-  "gambar_d": "https://example.com/d.jpg",
-  "gambar_e": "https://example.com/e.jpg",
-  "kunci": "B"
-}
-```
-
-**Field Requirements:**
+**Form Fields:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id_bank_soal` | string (UUID) | ✅ Yes | ID bank_soal (harus exist) |
+| `id_bank_soal` | string (UUID) | ✅ Yes | ID bank_soal |
+| `no_soal` | integer | ✅ Yes | Nomor soal (min 1) |
 | `soal` | string | ✅ Yes | Pertanyaan soal |
-| `gambar_soal` | string | ❌ No | URL gambar soal |
-| `opsi_a` | string | ✅ Yes | Opsi A (wajib) |
-| `opsi_b` | string | ✅ Yes | Opsi B (wajib) |
-| `opsi_c` | string | ✅ Yes | Opsi C (wajib) |
-| `opsi_d` | string | ❌ No | Opsi D (opsional) |
-| `opsi_e` | string | ❌ No | Opsi E (opsional) |
-| `gambar_a..e` | string | ❌ No | URL gambar per opsi |
+| `gambar_soal` | file (jpg, jpeg, png, gif, webp) | ❌ No | Gambar pertanyaan (max 5MB) |
+| `opsi_a` | string | ✅ Yes | Opsi A |
+| `opsi_b` | string | ✅ Yes | Opsi B |
+| `opsi_c` | string | ✅ Yes | Opsi C |
+| `opsi_d` | string | ❌ No | Opsi D |
+| `opsi_e` | string | ❌ No | Opsi E |
+| `gambar_a` | file | ❌ No | Gambar opsi A (max 5MB) |
+| `gambar_b` | file | ❌ No | Gambar opsi B (max 5MB) |
+| `gambar_c` | file | ❌ No | Gambar opsi C (max 5MB) |
+| `gambar_d` | file | ❌ No | Gambar opsi D (max 5MB) |
+| `gambar_e` | file | ❌ No | Gambar opsi E (max 5MB) |
 | `kunci` | string | ✅ Yes | Jawaban benar (A/B/C/D/E) |
 
-**Validasi Kunci:**
-- Harus A, B, C, D, atau E
+**Validasi:**
+- Format gambar: jpg, jpeg, png, gif, webp
+- Ukuran maksimal: 5MB per file
+- Kunci harus A, B, C, D, atau E
 - Jika kunci adalah D atau E, opsi yang dirujuk tidak boleh kosong
 
 **Request Example:**
 ```bash
 curl -X POST "http://localhost:3000/api/soal" \
-  -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
-  -d '{
-    "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
-    "soal": "Berapa hasil dari 2 + 2?",
-    "gambar_soal": "https://example.com/soal.jpg",
-    "opsi_a": "3",
-    "opsi_b": "4",
-    "opsi_c": "5",
-    "opsi_d": "6",
-    "opsi_e": "7",
-    "gambar_a": "https://example.com/a.jpg",
-    "gambar_b": "https://example.com/b.jpg",
-    "gambar_c": "https://example.com/c.jpg",
-    "gambar_d": "https://example.com/d.jpg",
-    "gambar_e": "https://example.com/e.jpg",
-    "kunci": "B"
-  }'
+  -F "id_bank_soal=5112e444-25d8-4ca6-859f-3d24099f45ce" \
+  -F "no_soal=1" \
+  -F "soal=Berapa hasil dari 2 + 2?" \
+  -F "gambar_soal=@soal.jpg" \
+  -F "opsi_a=3" \
+  -F "opsi_b=4" \
+  -F "opsi_c=5" \
+  -F "opsi_d=6" \
+  -F "opsi_e=7" \
+  -F "gambar_a=@a.jpg" \
+  -F "gambar_b=@b.jpg" \
+  -F "gambar_c=@c.jpg" \
+  -F "gambar_d=@d.jpg" \
+  -F "gambar_e=@e.jpg" \
+  -F "kunci=B"
 ```
 
 **Success Response (201 Created):**
@@ -265,18 +253,19 @@ curl -X POST "http://localhost:3000/api/soal" \
   "data": {
     "id": "abc123def456",
     "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
+    "no_soal": 1,
     "soal": "Berapa hasil dari 2 + 2?",
-    "gambar_soal": "https://example.com/soal.jpg",
+    "gambar_soal": "http://localhost:3000/uploads/soal/1684426848_abc12345.jpg",
     "opsi_a": "3",
     "opsi_b": "4",
     "opsi_c": "5",
     "opsi_d": "6",
     "opsi_e": "7",
-    "gambar_a": "https://example.com/a.jpg",
-    "gambar_b": "https://example.com/b.jpg",
-    "gambar_c": "https://example.com/c.jpg",
-    "gambar_d": "https://example.com/d.jpg",
-    "gambar_e": "https://example.com/e.jpg",
+    "gambar_a": "http://localhost:3000/uploads/soal/1684426849_def67890.jpg",
+    "gambar_b": "http://localhost:3000/uploads/soal/1684426850_ghi11111.jpg",
+    "gambar_c": "http://localhost:3000/uploads/soal/1684426851_jkl22222.jpg",
+    "gambar_d": "http://localhost:3000/uploads/soal/1684426852_mno33333.jpg",
+    "gambar_e": "http://localhost:3000/uploads/soal/1684426853_pqr44444.jpg",
     "kunci": "B",
     "created_at": "2026-05-18 14:00:00",
     "updated_at": "2026-05-18 14:00:00"
@@ -287,7 +276,7 @@ curl -X POST "http://localhost:3000/api/soal" \
 
 ---
 
-### 5️⃣ PUT - Update Soal
+### 5️⃣ PUT - Update Soal (dengan Upload Gambar)
 
 **Endpoint:** `PUT /api/soal/:id`
 
@@ -298,37 +287,61 @@ curl -X POST "http://localhost:3000/api/soal" \
 |-----------|------|-------------|
 | `id` | string (UUID) | ID soal yang akan diupdate |
 
-**Request Body:**
-```json
-{
-  "soal": "Berapa hasil dari 3 + 3?",
-  "gambar_soal": "https://example.com/soal-updated.jpg",
-  "opsi_a": "5",
-  "opsi_b": "6",
-  "opsi_c": "7",
-  "opsi_d": "8",
-  "opsi_e": "9",
-  "gambar_a": "https://example.com/a-updated.jpg",
-  "gambar_b": "https://example.com/b-updated.jpg",
-  "gambar_c": "https://example.com/c-updated.jpg",
-  "gambar_d": "https://example.com/d-updated.jpg",
-  "gambar_e": "https://example.com/e-updated.jpg",
-  "kunci": "B"
-}
+**Request Headers:**
+```
+Content-Type: multipart/form-data
+Authorization: Bearer <JWT_TOKEN>
 ```
 
-**Request Example:**
+**Form Fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `no_soal` | integer | ✅ Yes | Nomor soal (min 1) |
+| `soal` | string | ✅ Yes | Pertanyaan soal |
+| `gambar_soal` | file | ❌ No | Gambar pertanyaan baru (max 5MB) |
+| `opsi_a` | string | ✅ Yes | Opsi A |
+| `opsi_b` | string | ✅ Yes | Opsi B |
+| `opsi_c` | string | ✅ Yes | Opsi C |
+| `opsi_d` | string | ❌ No | Opsi D |
+| `opsi_e` | string | ❌ No | Opsi E |
+| `gambar_a` | file | ❌ No | Gambar opsi A baru (max 5MB) |
+| `gambar_b` | file | ❌ No | Gambar opsi B baru (max 5MB) |
+| `gambar_c` | file | ❌ No | Gambar opsi C baru (max 5MB) |
+| `gambar_d` | file | ❌ No | Gambar opsi D baru (max 5MB) |
+| `gambar_e` | file | ❌ No | Gambar opsi E baru (max 5MB) |
+| `kunci` | string | ✅ Yes | Jawaban benar (A/B/C/D/E) |
+
+**Request Example (Partial Update):**
 ```bash
 curl -X PUT "http://localhost:3000/api/soal/abc123def456" \
-  -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
-  -d '{
-    "soal": "Berapa hasil dari 3 + 3?",
-    "opsi_a": "5",
-    "opsi_b": "6",
-    "opsi_c": "7",
-    "kunci": "B"
-  }'
+  -F "no_soal=2" \
+  -F "soal=Berapa hasil dari 3 + 3?" \
+  -F "opsi_a=5" \
+  -F "opsi_b=6" \
+  -F "opsi_c=7" \
+  -F "gambar_soal=@soal-updated.jpg" \
+  -F "kunci=B"
+```
+
+**Request Example (Update dengan Semua Gambar):**
+```bash
+curl -X PUT "http://localhost:3000/api/soal/abc123def456" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -F "no_soal=2" \
+  -F "soal=Berapa hasil dari 3 + 3?" \
+  -F "opsi_a=5" \
+  -F "opsi_b=6" \
+  -F "opsi_c=7" \
+  -F "opsi_d=8" \
+  -F "opsi_e=9" \
+  -F "gambar_soal=@soal-updated.jpg" \
+  -F "gambar_a=@a-updated.jpg" \
+  -F "gambar_b=@b-updated.jpg" \
+  -F "gambar_c=@c-updated.jpg" \
+  -F "gambar_d=@d-updated.jpg" \
+  -F "gambar_e=@e-updated.jpg" \
+  -F "kunci=B"
 ```
 
 **Success Response (200 OK):**
@@ -339,18 +352,19 @@ curl -X PUT "http://localhost:3000/api/soal/abc123def456" \
   "data": {
     "id": "abc123def456",
     "id_bank_soal": "5112e444-25d8-4ca6-859f-3d24099f45ce",
+    "no_soal": 2,
     "soal": "Berapa hasil dari 3 + 3?",
-    "gambar_soal": "https://example.com/soal-updated.jpg",
+    "gambar_soal": "http://localhost:3000/uploads/soal/1684426854_xyz55555.jpg",
     "opsi_a": "5",
     "opsi_b": "6",
     "opsi_c": "7",
     "opsi_d": "8",
     "opsi_e": "9",
-    "gambar_a": "https://example.com/a-updated.jpg",
-    "gambar_b": "https://example.com/b-updated.jpg",
-    "gambar_c": "https://example.com/c-updated.jpg",
-    "gambar_d": "https://example.com/d-updated.jpg",
-    "gambar_e": "https://example.com/e-updated.jpg",
+    "gambar_a": "http://localhost:3000/uploads/soal/1684426855_abc66666.jpg",
+    "gambar_b": "http://localhost:3000/uploads/soal/1684426856_def77777.jpg",
+    "gambar_c": "http://localhost:3000/uploads/soal/1684426857_ghi88888.jpg",
+    "gambar_d": "http://localhost:3000/uploads/soal/1684426858_jkl99999.jpg",
+    "gambar_e": "http://localhost:3000/uploads/soal/1684426859_mno00000.jpg",
     "kunci": "B",
     "created_at": "2026-05-18 14:00:00",
     "updated_at": "2026-05-18 14:05:00"
@@ -358,6 +372,11 @@ curl -X PUT "http://localhost:3000/api/soal/abc123def456" \
   "errors": null
 }
 ```
+
+**Notes:**
+- Gambar lama akan otomatis dihapus saat update dengan gambar baru
+- Jika update tanpa file gambar baru, gambar lama tetap dipertahankan
+- Setiap upload file akan menghasilkan unique filename dengan timestamp
 
 ---
 
