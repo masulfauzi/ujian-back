@@ -12,7 +12,7 @@ type Mapel struct {
 	Deskripsi string       `gorm:"type:text" json:"deskripsi"`
 	CreatedAt time.Time    `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time    `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt sql.NullTime `gorm:"index" json:"deleted_at"`
+	DeletedAt *time.Time   `gorm:"index" json:"deleted_at"`
 	CreatedBy sql.NullString `gorm:"type:uuid" json:"created_by"`
 	UpdatedBy sql.NullString `gorm:"type:uuid" json:"updated_by"`
 }

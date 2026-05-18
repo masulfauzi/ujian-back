@@ -2,7 +2,6 @@ package repository
 
 import (
 	"backend/internal/modules/mapel/model"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -31,7 +30,9 @@ func (r *mapelRepository) Create(mapel *model.Mapel) error {
 
 func (r *mapelRepository) GetByID(id string) (*model.Mapel, error) {
 	var mapel model.Mapel
-	err := r.db.Where("id = ?", id).First(&mapel).Error
+	err := r.db.
+		Where("id = ? AND deleted_at IS NULL", id).
+		First(&mapel).Error
 	if err != nil {
 		return nil, err
 	}
@@ -51,14 +52,18 @@ func (r *mapelRepository) GetAll(page, pageSize int) ([]model.Mapel, int64, erro
 
 	offset := (page - 1) * pageSize
 
+	// Count total records (excluding soft deleted)
 	err := r.db.
 		Model(&model.Mapel{}).
+		Where("deleted_at IS NULL").
 		Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
+	// Get records with pagination (excluding soft deleted)
 	err = r.db.
+		Where("deleted_at IS NULL").
 		Offset(offset).
 		Limit(pageSize).
 		Find(&mapels).Error
@@ -71,15 +76,13 @@ func (r *mapelRepository) Update(mapel *model.Mapel) error {
 }
 
 func (r *mapelRepository) Delete(id string) error {
-	return r.db.Model(&model.Mapel{}).
-		Where("id = ?", id).
-		Update("deleted_at", time.Now()).Error
+	// Soft delete - GORM will automatically set deleted_at
+	return r.db.Delete(&model.Mapel{}, "id = ?", id).Error
 }
 
 func (r *mapelRepository) Restore(id string) error {
-	return r.db.Model(&model.Mapel{}).
-		Where("id = ?", id).
-		Update("deleted_at", nil).Error
+	// Restore - clear deleted_at using direct update
+	return r.db.Table("mapel").Where("id = ?", id).Update("deleted_at", nil).Error
 }
 
 func (r *mapelRepository) HardDelete(id string) error {
