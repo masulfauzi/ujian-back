@@ -135,6 +135,7 @@ curl -X GET "http://localhost:3000/api/bank-soal/5112e444-25d8-4ca6-859f-3d24099
     "id": "5112e444-25d8-4ca6-859f-3d24099f45ce",
     "nama_bank_soal": "Bank Soal Matematika Dasar",
     "id_mapel": "f71b3390-beeb-4e06-8fd4-deb1778c8210",
+    "nama_mapel": "Matematika",
     "jml_soal": 50,
     "deskripsi": "Kumpulan soal matematika level dasar",
     "created_at": "2026-05-18 10:39:07",
