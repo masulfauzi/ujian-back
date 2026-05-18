@@ -58,7 +58,7 @@ func (s *bankSoalService) GetBankSoalByID(id string) (*dto.BankSoalResponse, err
 }
 
 func (s *bankSoalService) GetAllBankSoal(page, pageSize int) (*dto.BankSoalListResponse, error) {
-	bankSoals, total, err := s.repo.GetAll(page, pageSize)
+	bankSoals, total, err := s.repo.GetAllWithMapel(page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +70,9 @@ func (s *bankSoalService) GetAllBankSoal(page, pageSize int) (*dto.BankSoalListR
 		pageSize = 10
 	}
 
-	var responses []dto.BankSoalResponse
+	responses := []dto.BankSoalResponse{}
 	for _, bs := range bankSoals {
-		responses = append(responses, *s.modelToResponse(&bs))
+		responses = append(responses, *s.joinedToResponse(&bs))
 	}
 
 	totalPage := int(math.Ceil(float64(total) / float64(pageSize)))
@@ -87,7 +87,7 @@ func (s *bankSoalService) GetAllBankSoal(page, pageSize int) (*dto.BankSoalListR
 }
 
 func (s *bankSoalService) GetBankSoalByMapel(mapelID string, page, pageSize int) (*dto.BankSoalListResponse, error) {
-	bankSoals, total, err := s.repo.GetByMapelID(mapelID, page, pageSize)
+	bankSoals, total, err := s.repo.GetByMapelIDWithMapel(mapelID, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +99,9 @@ func (s *bankSoalService) GetBankSoalByMapel(mapelID string, page, pageSize int)
 		pageSize = 10
 	}
 
-	var responses []dto.BankSoalResponse
+	responses := []dto.BankSoalResponse{}
 	for _, bs := range bankSoals {
-		responses = append(responses, *s.modelToResponse(&bs))
+		responses = append(responses, *s.joinedToResponse(&bs))
 	}
 
 	totalPage := int(math.Ceil(float64(total) / float64(pageSize)))
@@ -157,9 +157,23 @@ func (s *bankSoalService) modelToResponse(bankSoal *model.BankSoal) *dto.BankSoa
 		ID:           bankSoal.ID,
 		NamaBankSoal: bankSoal.NamaBankSoal,
 		IdMapel:      bankSoal.IdMapel,
+		NamaMapel:    "",
 		JmlSoal:      bankSoal.JmlSoal,
 		Deskripsi:    bankSoal.Deskripsi,
 		CreatedAt:    bankSoal.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:    bankSoal.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+}
+
+func (s *bankSoalService) joinedToResponse(bankSoal *repository.BankSoalWithMapel) *dto.BankSoalResponse {
+	return &dto.BankSoalResponse{
+		ID:           bankSoal.ID,
+		NamaBankSoal: bankSoal.NamaBankSoal,
+		IdMapel:      bankSoal.IdMapel,
+		NamaMapel:    bankSoal.NamaMapel,
+		JmlSoal:      bankSoal.JmlSoal,
+		Deskripsi:    bankSoal.Deskripsi,
+		CreatedAt:    bankSoal.CreatedAt,
+		UpdatedAt:    bankSoal.UpdatedAt,
 	}
 }

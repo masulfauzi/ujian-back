@@ -2,9 +2,12 @@ package configs
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type DatabaseConfig struct {
@@ -36,7 +39,14 @@ func (c *DatabaseConfig) GetDSN() string {
 }
 
 func (c *DatabaseConfig) Connect() (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(c.GetDSN()), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(c.GetDSN()), &gorm.Config{
+		Logger: logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			logger.Config{
+				LogLevel: logger.Info,
+			},
+		),
+	})
 	if err != nil {
 		return nil, err
 	}
