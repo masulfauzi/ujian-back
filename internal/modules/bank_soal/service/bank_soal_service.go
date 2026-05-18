@@ -70,7 +70,7 @@ func (s *bankSoalService) GetAllBankSoal(page, pageSize int) (*dto.BankSoalListR
 		pageSize = 10
 	}
 
-	var responses []dto.BankSoalResponse
+	responses := []dto.BankSoalResponse{}
 	for _, bs := range bankSoals {
 		responses = append(responses, *s.joinedToResponse(&bs))
 	}
@@ -99,7 +99,7 @@ func (s *bankSoalService) GetBankSoalByMapel(mapelID string, page, pageSize int)
 		pageSize = 10
 	}
 
-	var responses []dto.BankSoalResponse
+	responses := []dto.BankSoalResponse{}
 	for _, bs := range bankSoals {
 		responses = append(responses, *s.joinedToResponse(&bs))
 	}

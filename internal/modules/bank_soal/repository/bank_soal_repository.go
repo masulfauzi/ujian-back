@@ -2,6 +2,7 @@ package repository
 
 import (
 	"backend/internal/modules/bank_soal/model"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -118,11 +119,12 @@ func (r *bankSoalRepository) Update(bankSoal *model.BankSoal) error {
 }
 
 func (r *bankSoalRepository) Delete(id string) error {
-	return r.db.Delete(&model.BankSoal{}, "id = ?", id).Error
+	now := time.Now()
+	return r.db.Model(&model.BankSoal{}).Where("id = ?", id).Update("deleted_at", now).Error
 }
 
 func (r *bankSoalRepository) Restore(id string) error {
-	return r.db.Table("bank_soal").Where("id = ?", id).Update("deleted_at", nil).Error
+	return r.db.Model(&model.BankSoal{}).Where("id = ?", id).Update("deleted_at", gorm.Expr("NULL")).Error
 }
 
 func (r *bankSoalRepository) HardDelete(id string) error {
