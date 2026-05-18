@@ -6,11 +6,24 @@ import (
 	"gorm.io/gorm"
 )
 
+type BankSoalWithMapel struct {
+	ID           string `gorm:"column:id"`
+	NamaBankSoal string `gorm:"column:nama_bank_soal"`
+	IdMapel      string `gorm:"column:id_mapel"`
+	NamaMapel    string `gorm:"column:nama_mapel"`
+	JmlSoal      int    `gorm:"column:jml_soal"`
+	Deskripsi    string `gorm:"column:deskripsi"`
+	CreatedAt    string `gorm:"column:created_at"`
+	UpdatedAt    string `gorm:"column:updated_at"`
+}
+
 type BankSoalRepository interface {
 	Create(bankSoal *model.BankSoal) error
 	GetByID(id string) (*model.BankSoal, error)
 	GetAll(page, pageSize int) ([]model.BankSoal, int64, error)
 	GetByMapelID(mapelID string, page, pageSize int) ([]model.BankSoal, int64, error)
+	GetAllWithMapel(page, pageSize int) ([]BankSoalWithMapel, int64, error)
+	GetByMapelIDWithMapel(mapelID string, page, pageSize int) ([]BankSoalWithMapel, int64, error)
 	Update(bankSoal *model.BankSoal) error
 	Delete(id string) error
 	Restore(id string) error
@@ -114,4 +127,74 @@ func (r *bankSoalRepository) Restore(id string) error {
 
 func (r *bankSoalRepository) HardDelete(id string) error {
 	return r.db.Unscoped().Delete(&model.BankSoal{}, "id = ?", id).Error
+}
+
+func (r *bankSoalRepository) GetAllWithMapel(page, pageSize int) ([]BankSoalWithMapel, int64, error) {
+	var bankSoals []BankSoalWithMapel
+	var total int64
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	offset := (page - 1) * pageSize
+
+	err := r.db.
+		Table("bank_soal").
+		Select("bank_soal.id, bank_soal.nama_bank_soal, bank_soal.id_mapel, mapel.nama_mapel, bank_soal.jml_soal, bank_soal.deskripsi, bank_soal.created_at, bank_soal.updated_at").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.deleted_at IS NULL").
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = r.db.
+		Table("bank_soal").
+		Select("bank_soal.id, bank_soal.nama_bank_soal, bank_soal.id_mapel, mapel.nama_mapel, bank_soal.jml_soal, bank_soal.deskripsi, bank_soal.created_at, bank_soal.updated_at").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.deleted_at IS NULL").
+		Offset(offset).
+		Limit(pageSize).
+		Scan(&bankSoals).Error
+
+	return bankSoals, total, err
+}
+
+func (r *bankSoalRepository) GetByMapelIDWithMapel(mapelID string, page, pageSize int) ([]BankSoalWithMapel, int64, error) {
+	var bankSoals []BankSoalWithMapel
+	var total int64
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	offset := (page - 1) * pageSize
+
+	err := r.db.
+		Table("bank_soal").
+		Select("bank_soal.id, bank_soal.nama_bank_soal, bank_soal.id_mapel, mapel.nama_mapel, bank_soal.jml_soal, bank_soal.deskripsi, bank_soal.created_at, bank_soal.updated_at").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.id_mapel = ? AND bank_soal.deleted_at IS NULL", mapelID).
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = r.db.
+		Table("bank_soal").
+		Select("bank_soal.id, bank_soal.nama_bank_soal, bank_soal.id_mapel, mapel.nama_mapel, bank_soal.jml_soal, bank_soal.deskripsi, bank_soal.created_at, bank_soal.updated_at").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.id_mapel = ? AND bank_soal.deleted_at IS NULL", mapelID).
+		Offset(offset).
+		Limit(pageSize).
+		Scan(&bankSoals).Error
+
+	return bankSoals, total, err
 }

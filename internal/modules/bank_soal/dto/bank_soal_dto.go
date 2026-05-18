@@ -18,6 +18,7 @@ type BankSoalResponse struct {
 	ID           string `json:"id"`
 	NamaBankSoal string `json:"nama_bank_soal"`
 	IdMapel      string `json:"id_mapel"`
+	NamaMapel    string `json:"nama_mapel"`
 	JmlSoal      int    `json:"jml_soal"`
 	Deskripsi    string `json:"deskripsi"`
 	CreatedAt    string `json:"created_at"`
