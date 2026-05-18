@@ -12,5 +12,9 @@ func RunSeeders(db *gorm.DB) error {
 		return fmt.Errorf("failed to seed mapel: %w", err)
 	}
 
+	if err := seeders.SeedBankSoal(db); err != nil {
+		return fmt.Errorf("failed to seed bank_soal: %w", err)
+	}
+
 	return nil
 }

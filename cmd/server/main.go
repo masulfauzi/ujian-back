@@ -11,6 +11,7 @@ import (
 	"backend/internal/database"
 	"backend/internal/middleware"
 	authroutes "backend/internal/modules/auth/routes"
+	banksoalroutes "backend/internal/modules/bank_soal/routes"
 	mapelroutes "backend/internal/modules/mapel/routes"
 	userroutes "backend/internal/modules/user/routes"
 
@@ -71,4 +72,5 @@ func setupRoutes(app *fiber.App) {
 	authroutes.SetupAuthRoutes(app, database.DB)
 	userroutes.SetupUserRoutes(app, database.DB)
 	mapelroutes.SetupMapelRoutes(app, database.DB)
+	banksoalroutes.SetupBankSoalRoutes(app, database.DB)
 }
