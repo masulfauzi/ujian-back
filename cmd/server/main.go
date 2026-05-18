@@ -13,6 +13,7 @@ import (
 	authroutes "backend/internal/modules/auth/routes"
 	banksoalroutes "backend/internal/modules/bank_soal/routes"
 	mapelroutes "backend/internal/modules/mapel/routes"
+	soalroutes "backend/internal/modules/soal/routes"
 	userroutes "backend/internal/modules/user/routes"
 
 	"github.com/gofiber/fiber/v2"
@@ -73,4 +74,5 @@ func setupRoutes(app *fiber.App) {
 	userroutes.SetupUserRoutes(app, database.DB)
 	mapelroutes.SetupMapelRoutes(app, database.DB)
 	banksoalroutes.SetupBankSoalRoutes(app, database.DB)
+	soalroutes.SetupSoalRoutes(app, database.DB)
 }
