@@ -19,13 +19,42 @@ func NewSoalController(service service.SoalService) *SoalController {
 }
 
 func (c *SoalController) CreateSoal(ctx *fiber.Ctx) error {
-	var req dto.CreateSoalRequest
+	req := new(dto.CreateSoalRequest)
 
-	if err := ctx.BodyParser(&req); err != nil {
-		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Invalid request format", nil)
+	req.IdBankSoal = ctx.FormValue("id_bank_soal")
+	req.Soal = ctx.FormValue("soal")
+	req.OpsiA = ctx.FormValue("opsi_a")
+	req.OpsiB = ctx.FormValue("opsi_b")
+	req.OpsiC = ctx.FormValue("opsi_c")
+	req.OpsiD = ctx.FormValue("opsi_d")
+	req.OpsiE = ctx.FormValue("opsi_e")
+	req.Kunci = ctx.FormValue("kunci")
+
+	noSoalStr := ctx.FormValue("no_soal")
+	if noSoal, err := strconv.Atoi(noSoalStr); err == nil {
+		req.NoSoal = noSoal
 	}
 
-	resp, err := c.service.CreateSoal(&req)
+	if file, err := ctx.FormFile("gambar_soal"); err == nil {
+		req.GambarSoal = file
+	}
+	if file, err := ctx.FormFile("gambar_a"); err == nil {
+		req.GambarA = file
+	}
+	if file, err := ctx.FormFile("gambar_b"); err == nil {
+		req.GambarB = file
+	}
+	if file, err := ctx.FormFile("gambar_c"); err == nil {
+		req.GambarC = file
+	}
+	if file, err := ctx.FormFile("gambar_d"); err == nil {
+		req.GambarD = file
+	}
+	if file, err := ctx.FormFile("gambar_e"); err == nil {
+		req.GambarE = file
+	}
+
+	resp, err := c.service.CreateSoal(req)
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -91,13 +120,41 @@ func (c *SoalController) GetSoalByBankSoal(ctx *fiber.Ctx) error {
 
 func (c *SoalController) UpdateSoal(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
-	var req dto.UpdateSoalRequest
+	req := new(dto.UpdateSoalRequest)
 
-	if err := ctx.BodyParser(&req); err != nil {
-		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Invalid request format", nil)
+	req.Soal = ctx.FormValue("soal")
+	req.OpsiA = ctx.FormValue("opsi_a")
+	req.OpsiB = ctx.FormValue("opsi_b")
+	req.OpsiC = ctx.FormValue("opsi_c")
+	req.OpsiD = ctx.FormValue("opsi_d")
+	req.OpsiE = ctx.FormValue("opsi_e")
+	req.Kunci = ctx.FormValue("kunci")
+
+	noSoalStr := ctx.FormValue("no_soal")
+	if noSoal, err := strconv.Atoi(noSoalStr); err == nil {
+		req.NoSoal = noSoal
 	}
 
-	resp, err := c.service.UpdateSoal(id, &req)
+	if file, err := ctx.FormFile("gambar_soal"); err == nil {
+		req.GambarSoal = file
+	}
+	if file, err := ctx.FormFile("gambar_a"); err == nil {
+		req.GambarA = file
+	}
+	if file, err := ctx.FormFile("gambar_b"); err == nil {
+		req.GambarB = file
+	}
+	if file, err := ctx.FormFile("gambar_c"); err == nil {
+		req.GambarC = file
+	}
+	if file, err := ctx.FormFile("gambar_d"); err == nil {
+		req.GambarD = file
+	}
+	if file, err := ctx.FormFile("gambar_e"); err == nil {
+		req.GambarE = file
+	}
+
+	resp, err := c.service.UpdateSoal(id, req)
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
