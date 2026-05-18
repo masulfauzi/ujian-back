@@ -21,6 +21,7 @@ type BankSoalWithMapel struct {
 type BankSoalRepository interface {
 	Create(bankSoal *model.BankSoal) error
 	GetByID(id string) (*model.BankSoal, error)
+	GetByIDWithMapel(id string) (*BankSoalWithMapel, error)
 	GetAll(page, pageSize int) ([]model.BankSoal, int64, error)
 	GetByMapelID(mapelID string, page, pageSize int) ([]model.BankSoal, int64, error)
 	GetAllWithMapel(page, pageSize int) ([]BankSoalWithMapel, int64, error)
@@ -47,6 +48,20 @@ func (r *bankSoalRepository) GetByID(id string) (*model.BankSoal, error) {
 	var bankSoal model.BankSoal
 	err := r.db.
 		Where("id = ? AND deleted_at IS NULL", id).
+		First(&bankSoal).Error
+	if err != nil {
+		return nil, err
+	}
+	return &bankSoal, nil
+}
+
+func (r *bankSoalRepository) GetByIDWithMapel(id string) (*BankSoalWithMapel, error) {
+	var bankSoal BankSoalWithMapel
+	err := r.db.
+		Table("bank_soal").
+		Select("bank_soal.id, bank_soal.nama_bank_soal, bank_soal.id_mapel, mapel.nama_mapel, bank_soal.jml_soal, bank_soal.deskripsi, bank_soal.created_at, bank_soal.updated_at").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.id = ? AND bank_soal.deleted_at IS NULL", id).
 		First(&bankSoal).Error
 	if err != nil {
 		return nil, err

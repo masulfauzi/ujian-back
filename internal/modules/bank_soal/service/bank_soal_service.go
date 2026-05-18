@@ -46,7 +46,7 @@ func (s *bankSoalService) CreateBankSoal(req *dto.CreateBankSoalRequest) (*dto.B
 }
 
 func (s *bankSoalService) GetBankSoalByID(id string) (*dto.BankSoalResponse, error) {
-	bankSoal, err := s.repo.GetByID(id)
+	bankSoal, err := s.repo.GetByIDWithMapel(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New(constants.ErrNotFound)
@@ -54,7 +54,7 @@ func (s *bankSoalService) GetBankSoalByID(id string) (*dto.BankSoalResponse, err
 		return nil, err
 	}
 
-	return s.modelToResponse(bankSoal), nil
+	return s.joinedToResponse(bankSoal), nil
 }
 
 func (s *bankSoalService) GetAllBankSoal(page, pageSize int) (*dto.BankSoalListResponse, error) {
