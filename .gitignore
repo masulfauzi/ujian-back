@@ -37,3 +37,6 @@ vendor/
 # Temporary files
 tmp/
 dist/
+
+# Uploaded files
+uploads/

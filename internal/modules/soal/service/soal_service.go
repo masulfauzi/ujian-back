@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
+	"strings"
+	"time"
 
 	"backend/internal/config"
 	"backend/internal/constants"
@@ -12,6 +15,7 @@ import (
 	"backend/internal/modules/soal/repository"
 	"backend/internal/utils"
 
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +27,7 @@ type SoalService interface {
 	UpdateSoal(id string, req *dto.UpdateSoalRequest) (*dto.SoalResponse, error)
 	DeleteSoal(id string) error
 	RestoreSoal(id string) error
+	ImportSoalFromExcel(ctx context.Context, req *dto.ImportSoalRequest) (*dto.ImportSoalResponse, error)
 }
 
 type soalService struct {
@@ -378,4 +383,116 @@ func (s *soalService) buildImageURL(filename, folder string) string {
 	}
 	cfg := config.GetUploadConfig()
 	return fmt.Sprintf("%s/%s/%s", cfg.ImageBaseURL, folder, filename)
+}
+
+func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSoalRequest) (*dto.ImportSoalResponse, error) {
+	// 1. Validasi bank_soal exists
+	exists, err := s.repo.GetBankSoalExists(ctx, req.IdBankSoal)
+	if err != nil || !exists {
+		return nil, errors.New("bank_soal tidak ditemukan")
+	}
+
+	// 2. Buka file dari request
+	file, err := req.File.Open()
+	if err != nil {
+		return nil, errors.New("gagal membuka file")
+	}
+	defer file.Close()
+
+	// 3. Parse excel file
+	xlsx, err := excelize.OpenReader(file)
+	if err != nil {
+		return nil, errors.New("file bukan format excel yang valid")
+	}
+	defer xlsx.Close()
+
+	// 4. Get sheet pertama
+	sheetName := xlsx.GetSheetName(0)
+	rows, err := xlsx.GetRows(sheetName)
+	if err != nil {
+		return nil, errors.New("gagal membaca sheet excel")
+	}
+
+	// 5. Parse dan validasi data
+	var soals []model.Soal
+	var errorDetails []dto.ImportSoalErrorDetail
+	var processedCount, successCount, failedCount int
+
+	// Skip header row (start dari index 1)
+	for rowIndex := 1; rowIndex < len(rows); rowIndex++ {
+		row := rows[rowIndex]
+		processedCount++
+
+		// Parse row
+		excelRow, err := utils.ParseExcelRow(row, rowIndex+1)
+		if err != nil {
+			failedCount++
+			errorDetails = append(errorDetails, dto.ImportSoalErrorDetail{
+				Row:   rowIndex + 1,
+				Error: err.Error(),
+			})
+			continue
+		}
+
+		// Validate row
+		validationErrors := utils.ValidateSoalRow(excelRow)
+		if len(validationErrors) > 0 {
+			failedCount++
+			errorDetails = append(errorDetails, dto.ImportSoalErrorDetail{
+				Row:   rowIndex + 1,
+				Error: strings.Join(validationErrors, "; "),
+			})
+			continue
+		}
+
+		// Create soal model
+		soal := model.Soal{
+			IdBankSoal: req.IdBankSoal,
+			NoSoal:     excelRow.NoSoal,
+			Soal:       excelRow.Soal,
+			OpsiA:      excelRow.OpsiA,
+			OpsiB:      excelRow.OpsiB,
+			OpsiC:      excelRow.OpsiC,
+			OpsiD:      excelRow.OpsiD,
+			OpsiE:      excelRow.OpsiE,
+			Kunci:      excelRow.Kunci,
+			GambarSoal: excelRow.GambarSoal,
+			GambarA:    excelRow.GambarA,
+			GambarB:    excelRow.GambarB,
+			GambarC:    excelRow.GambarC,
+			GambarD:    excelRow.GambarD,
+			GambarE:    excelRow.GambarE,
+		}
+
+		soals = append(soals, soal)
+		successCount++
+	}
+
+	// 6. Bulk insert ke database
+	if len(soals) > 0 {
+		err = s.repo.BulkCreateSoal(ctx, soals)
+		if err != nil {
+			return nil, errors.New("gagal menyimpan data ke database: " + err.Error())
+		}
+	}
+
+	// Limit error details ke max 100
+	if len(errorDetails) > 100 {
+		errorDetails = errorDetails[:100]
+	}
+
+	// 7. Return response
+	return &dto.ImportSoalResponse{
+		TotalProcessed: processedCount,
+		TotalSuccess:   successCount,
+		TotalFailed:    failedCount,
+		ImportID:       req.IdBankSoal,
+		Timestamp:      time.Now(),
+		Summary: map[string]int{
+			"inserted": successCount,
+			"skipped":  0,
+			"errors":   failedCount,
+		},
+		Errors: errorDetails,
+	}, nil
 }

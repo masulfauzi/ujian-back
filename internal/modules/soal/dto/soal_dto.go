@@ -1,6 +1,9 @@
 package dto
 
-import "mime/multipart"
+import (
+	"mime/multipart"
+	"time"
+)
 
 type CreateSoalRequest struct {
 	IdBankSoal  string                 `json:"id_bank_soal" form:"id_bank_soal" validate:"required"`
@@ -64,4 +67,27 @@ type SoalListResponse struct {
 	Page      int            `json:"page"`
 	PageSize  int            `json:"page_size"`
 	TotalPage int            `json:"total_page"`
+}
+
+// ImportSoalRequest adalah request untuk import soal dari excel
+type ImportSoalRequest struct {
+	IdBankSoal string                `form:"id_bank_soal" validate:"required"`
+	File       *multipart.FileHeader `form:"file" validate:"required"`
+}
+
+// ImportSoalErrorDetail adalah detail error per row
+type ImportSoalErrorDetail struct {
+	Row   int    `json:"row"`
+	Error string `json:"error"`
+}
+
+// ImportSoalResponse adalah response dari import
+type ImportSoalResponse struct {
+	TotalProcessed int                     `json:"total_processed"`
+	TotalSuccess   int                     `json:"total_success"`
+	TotalFailed    int                     `json:"total_failed"`
+	ImportID       string                  `json:"import_id"`
+	Timestamp      time.Time               `json:"timestamp"`
+	Summary        map[string]int          `json:"summary"`
+	Errors         []ImportSoalErrorDetail `json:"errors"`
 }

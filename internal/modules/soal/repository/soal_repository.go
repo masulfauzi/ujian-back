@@ -1,7 +1,9 @@
 package repository
 
 import (
+	bankSoalModel "backend/internal/modules/bank_soal/model"
 	"backend/internal/modules/soal/model"
+	"context"
 	"time"
 
 	"gorm.io/gorm"
@@ -16,6 +18,8 @@ type SoalRepository interface {
 	Delete(id string) error
 	Restore(id string) error
 	HardDelete(id string) error
+	BulkCreateSoal(ctx context.Context, soals []model.Soal) error
+	GetBankSoalExists(ctx context.Context, bankSoalID string) (bool, error)
 }
 
 type soalRepository struct {
@@ -116,4 +120,21 @@ func (r *soalRepository) Restore(id string) error {
 
 func (r *soalRepository) HardDelete(id string) error {
 	return r.db.Unscoped().Delete(&model.Soal{}, "id = ?", id).Error
+}
+
+func (r *soalRepository) BulkCreateSoal(ctx context.Context, soals []model.Soal) error {
+	return r.db.WithContext(ctx).CreateInBatches(soals, 100).Error
+}
+
+func (r *soalRepository) GetBankSoalExists(ctx context.Context, bankSoalID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&bankSoalModel.BankSoal{}).
+		Where("id = ? AND deleted_at IS NULL", bankSoalID).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
