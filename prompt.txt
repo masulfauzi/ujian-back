@@ -1,18 +1,19 @@
 buatkan issue.md yang berisi perencanaan untuk nanti diimplementasikan oleh junior programmer atau AI model yang lebih murah.
 
-isi dari perencanaannya dalah sebagai berikut:
+isi dari perencanaannya adalah sebagai berikut:
 
-buatkan migration untuk tabel bank_soal.
-field dari tabel bank_soal yaitu:
+buatkan migration untuk tabel jurusan.
+kolom untuk tabel jurusan adalah:
 - id
-- nama_bank_soal
-- id_mapel (terrelasi dengan tabel mapel)
-- jml_soal
+- nama_jurusan
 
-tambahkan field tambahan jika diperlukan seperti createdAt dan deletedAt.
-saya akan menggunakan soft delete pada tabel ini.
+tambahkan kolom untuk mencatat waktu dan juga untuk soft delete.
 
-jika migration sudah dibuat, buatkan juga seeder untuk bank_soal ini dan jalankan migration dan seeder.
+setelah jadi, buatkan juga seeder untuk tabel ini.
+
+kemudian buatkan endpoint untuk CRUD.
+buatkan dokumentasi singkat untuk implementasi pada frontend.
+
 
 jelaskan tahapan yang harus dilakukan untuk mengimplementasikan fitur ini.
 anggap nanti yang akan mengimplementasikan ini adalah junior programmer atau AI model yang lebih murah.
