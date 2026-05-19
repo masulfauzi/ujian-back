@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"path/filepath"
 	"strconv"
 
 	"backend/internal/helpers"
@@ -182,4 +183,52 @@ func (c *SoalController) RestoreSoal(ctx *fiber.Ctx) error {
 	}
 
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Restore soal successfully", nil)
+}
+
+func (c *SoalController) ImportSoalFromExcel(ctx *fiber.Ctx) error {
+	// 1. Parse multipart form
+	file, err := ctx.FormFile("file")
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "File tidak ditemukan", map[string]string{
+			"error": "Silakan upload file excel",
+		})
+	}
+
+	// 2. Validate file size (max 10MB)
+	const maxFileSize = 10 * 1024 * 1024
+	if file.Size > maxFileSize {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "File terlalu besar", map[string]string{
+			"error": "Max file size adalah 10MB",
+		})
+	}
+
+	// 3. Validate file extension
+	ext := filepath.Ext(file.Filename)
+	if ext != ".xls" && ext != ".xlsx" {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Format file tidak valid", map[string]string{
+			"error": "File harus berupa .xls atau .xlsx",
+		})
+	}
+
+	// 4. Build request
+	req := &dto.ImportSoalRequest{
+		IdBankSoal: ctx.FormValue("id_bank_soal"),
+		File:       file,
+	}
+
+	// 5. Validate required fields
+	if req.IdBankSoal == "" {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "id_bank_soal tidak ditemukan", nil)
+	}
+
+	// 6. Call service
+	resp, err := c.service.ImportSoalFromExcel(ctx.Context(), req)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Import soal gagal", map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	// 7. Return success response
+	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Import soal berhasil", resp)
 }

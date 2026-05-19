@@ -20,12 +20,15 @@ func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Public endpoints (GET)
 	soal.Get("/", ctrl.GetAllSoal)
-	soal.Get("/:id", ctrl.GetSoalByID)
 	soal.Get("/bank/:bank_soal_id", ctrl.GetSoalByBankSoal)
 
 	// Protected endpoints (write operations)
 	soal.Post("/", middleware.JWTAuth(), ctrl.CreateSoal)
+	soal.Post("/import", middleware.JWTAuth(), ctrl.ImportSoalFromExcel)
 	soal.Put("/:id", middleware.JWTAuth(), ctrl.UpdateSoal)
 	soal.Delete("/:id", middleware.JWTAuth(), ctrl.DeleteSoal)
 	soal.Patch("/:id/restore", middleware.JWTAuth(), ctrl.RestoreSoal)
+
+	// Public endpoint (GET) - dynamic route at the end
+	soal.Get("/:id", ctrl.GetSoalByID)
 }
