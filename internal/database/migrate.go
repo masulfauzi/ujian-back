@@ -3,6 +3,7 @@ package database
 import (
 	banksoalmodel "backend/internal/modules/bank_soal/model"
 	jurusanmodel "backend/internal/modules/jurusan/model"
+	kelasmodel    "backend/internal/modules/kelas/model"
 	mapelmodel "backend/internal/modules/mapel/model"
 	soalmodel "backend/internal/modules/soal/model"
 	usermodel "backend/internal/modules/user/model"
@@ -23,5 +24,6 @@ func RunMigrations(db *gorm.DB) error {
 		&banksoalmodel.BankSoal{},
 		&soalmodel.Soal{},
 		&jurusanmodel.Jurusan{},
+		&kelasmodel.Kelas{},
 	)
 }

@@ -13,6 +13,7 @@ import (
 	authroutes "backend/internal/modules/auth/routes"
 	banksoalroutes "backend/internal/modules/bank_soal/routes"
 	jurusanroutes "backend/internal/modules/jurusan/routes"
+	kelasroutes "backend/internal/modules/kelas/routes"
 	mapelroutes "backend/internal/modules/mapel/routes"
 	soalroutes "backend/internal/modules/soal/routes"
 	userroutes "backend/internal/modules/user/routes"
@@ -79,4 +80,5 @@ func setupRoutes(app *fiber.App) {
 	banksoalroutes.SetupBankSoalRoutes(app, database.DB)
 	soalroutes.SetupSoalRoutes(app, database.DB)
 	jurusanroutes.SetupJurusanRoutes(app, database.DB)
+	kelasroutes.SetupKelasRoutes(app, database.DB)
 }

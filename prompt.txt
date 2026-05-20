@@ -2,17 +2,14 @@ buatkan issue.md yang berisi perencanaan untuk nanti diimplementasikan oleh juni
 
 isi dari perencanaannya adalah sebagai berikut:
 
-buatkan migration untuk tabel jurusan.
-kolom untuk tabel jurusan adalah:
-- id
-- nama_jurusan
+tambahkan kolom tingkat pada migration kelas.
 
-tambahkan kolom untuk mencatat waktu dan juga untuk soft delete.
+untuk seeder kelas, tambahkan juga isian untuk kolom kelas.
 
-setelah jadi, buatkan juga seeder untuk tabel ini.
+drop tabel kelas kemudian jalankan migration dan seeder kelas.
 
-kemudian buatkan endpoint untuk CRUD.
-buatkan dokumentasi singkat untuk implementasi pada frontend.
+lalu sesuaikan api endpoint untuk melakukan CRUD ke tabel kelas.
+sesuaikan juga dokumentasi api kelas untuk implementasi pada frontend.
 
 
 jelaskan tahapan yang harus dilakukan untuk mengimplementasikan fitur ini.
