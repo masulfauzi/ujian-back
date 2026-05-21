@@ -2,14 +2,20 @@ buatkan issue.md yang berisi perencanaan untuk nanti diimplementasikan oleh juni
 
 isi dari perencanaannya adalah sebagai berikut:
 
-tambahkan kolom tingkat pada migration kelas.
+buatkan migration dan seeder untuk tabel peserta.
+kolom dari tabel peserta yaitu:
+- id
+- nama
+- id_kelas (relasi dengan tabel kelas)
+- username
+- password
 
-untuk seeder kelas, tambahkan juga isian untuk kolom kelas.
+tambahkan kolom tambahan untuk mencatat waktu dan deleted_at untuk soft delete.
 
-drop tabel kelas kemudian jalankan migration dan seeder kelas.
+jalankan migration dan seeder.
 
-lalu sesuaikan api endpoint untuk melakukan CRUD ke tabel kelas.
-sesuaikan juga dokumentasi api kelas untuk implementasi pada frontend.
+buatkan api endpoint untuk menangani CRUD peserta.
+buatkan dokumentasi penggunaan endpoint peserta.
 
 
 jelaskan tahapan yang harus dilakukan untuk mengimplementasikan fitur ini.

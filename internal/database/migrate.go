@@ -5,6 +5,7 @@ import (
 	jurusanmodel "backend/internal/modules/jurusan/model"
 	kelasmodel    "backend/internal/modules/kelas/model"
 	mapelmodel "backend/internal/modules/mapel/model"
+	pesertamodel  "backend/internal/modules/peserta/model"
 	soalmodel "backend/internal/modules/soal/model"
 	usermodel "backend/internal/modules/user/model"
 
@@ -25,5 +26,6 @@ func RunMigrations(db *gorm.DB) error {
 		&soalmodel.Soal{},
 		&jurusanmodel.Jurusan{},
 		&kelasmodel.Kelas{},
+		&pesertamodel.Peserta{},
 	)
 }
