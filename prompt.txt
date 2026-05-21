@@ -2,14 +2,16 @@ buatkan issue.md yang berisi perencanaan untuk nanti diimplementasikan oleh juni
 
 isi dari perencanaannya adalah sebagai berikut:
 
-tambahkan kolom tingkat pada migration kelas.
+buatkan migration untuk tabel jadwal_kelas.
+kolom dari tabel jadwal_kelas adalah:
+- id
+- id_jadwal (relasi dengan tabel jadwal)
+- id_kelas (relasi dengan tabel kelas)
 
-untuk seeder kelas, tambahkan juga isian untuk kolom kelas.
+tambahkan kolom untuk mencatat waktu.
+aplikasikan hard delete untuk tabel ini.
 
-drop tabel kelas kemudian jalankan migration dan seeder kelas.
-
-lalu sesuaikan api endpoint untuk melakukan CRUD ke tabel kelas.
-sesuaikan juga dokumentasi api kelas untuk implementasi pada frontend.
+setelah itu buatkan api endpoint untuk transaksi CRUD pada tabel jadwal_kelas.
 
 
 jelaskan tahapan yang harus dilakukan untuk mengimplementasikan fitur ini.
