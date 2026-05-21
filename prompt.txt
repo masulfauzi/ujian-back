@@ -2,16 +2,20 @@ buatkan issue.md yang berisi perencanaan untuk nanti diimplementasikan oleh juni
 
 isi dari perencanaannya adalah sebagai berikut:
 
-buatkan migration untuk tabel jadwal_kelas.
-kolom dari tabel jadwal_kelas adalah:
+buatkan migration dan seeder untuk tabel peserta.
+kolom dari tabel peserta yaitu:
 - id
-- id_jadwal (relasi dengan tabel jadwal)
+- nama
 - id_kelas (relasi dengan tabel kelas)
+- username
+- password
 
-tambahkan kolom untuk mencatat waktu.
-aplikasikan hard delete untuk tabel ini.
+tambahkan kolom tambahan untuk mencatat waktu dan deleted_at untuk soft delete.
 
-setelah itu buatkan api endpoint untuk transaksi CRUD pada tabel jadwal_kelas.
+jalankan migration dan seeder.
+
+buatkan api endpoint untuk menangani CRUD peserta.
+buatkan dokumentasi penggunaan endpoint peserta.
 
 
 jelaskan tahapan yang harus dilakukan untuk mengimplementasikan fitur ini.
