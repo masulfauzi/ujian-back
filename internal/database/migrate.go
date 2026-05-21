@@ -1,13 +1,15 @@
 package database
 
 import (
-	banksoalmodel "backend/internal/modules/bank_soal/model"
-	jurusanmodel "backend/internal/modules/jurusan/model"
-	kelasmodel    "backend/internal/modules/kelas/model"
-	mapelmodel "backend/internal/modules/mapel/model"
-	pesertamodel  "backend/internal/modules/peserta/model"
-	soalmodel "backend/internal/modules/soal/model"
-	usermodel "backend/internal/modules/user/model"
+	banksoalmodel    "backend/internal/modules/bank_soal/model"
+	jadwalmodel      "backend/internal/modules/jadwal/model"
+	jadwalkelasmodel "backend/internal/modules/jadwal_kelas/model"
+	jurusanmodel     "backend/internal/modules/jurusan/model"
+	kelasmodel       "backend/internal/modules/kelas/model"
+	mapelmodel       "backend/internal/modules/mapel/model"
+	pesertamodel     "backend/internal/modules/peserta/model"
+	soalmodel        "backend/internal/modules/soal/model"
+	usermodel        "backend/internal/modules/user/model"
 
 	"gorm.io/gorm"
 )
@@ -19,13 +21,22 @@ func RunMigrations(db *gorm.DB) error {
 	db.Exec("DROP INDEX IF EXISTS uni_jurusan_nama_jurusan")
 	db.Exec("DROP INDEX IF EXISTS idx_jurusan_nama_jurusan")
 
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&usermodel.User{},
 		&mapelmodel.Mapel{},
 		&banksoalmodel.BankSoal{},
 		&soalmodel.Soal{},
 		&jurusanmodel.Jurusan{},
 		&kelasmodel.Kelas{},
+		&jadwalmodel.Jadwal{},
+		&jadwalkelasmodel.JadwalKelas{},
 		&pesertamodel.Peserta{},
-	)
+	); err != nil {
+		return err
+	}
+
+	// Buat unique constraint untuk mencegah duplikasi assignment kelas ke jadwal
+	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jadwal_kelas_unique ON jadwal_kelas(id_jadwal, id_kelas)")
+
+	return nil
 }

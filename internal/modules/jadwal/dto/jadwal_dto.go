@@ -1,0 +1,50 @@
+package dto
+
+type CreateJadwalRequest struct {
+	IDBankSoal string   `json:"id_bank_soal" validate:"required"`
+	Tingkat    string   `json:"tingkat" validate:"required"`
+	WktMulai   string   `json:"wkt_mulai" validate:"required"`
+	WktSelesai string   `json:"wkt_selesai" validate:"required"`
+	IDKelas    []string `json:"id_kelas" validate:"required"`
+}
+
+type UpdateJadwalRequest struct {
+	IDBankSoal string   `json:"id_bank_soal" validate:"required"`
+	Tingkat    string   `json:"tingkat" validate:"required"`
+	WktMulai   string   `json:"wkt_mulai" validate:"required"`
+	WktSelesai string   `json:"wkt_selesai" validate:"required"`
+	IDKelas    []string `json:"id_kelas" validate:"required"`
+}
+
+type KelasItem struct {
+	ID        string `json:"id"`
+	IDKelas   string `json:"id_kelas"`
+	NamaKelas string `json:"nama_kelas"`
+}
+
+type JurusanItem struct {
+	ID          string `json:"id"`
+	IDJurusan   string `json:"id_jurusan"`
+	NamaJurusan string `json:"nama_jurusan"`
+}
+
+type JadwalResponse struct {
+	ID           string         `json:"id"`
+	IDBankSoal   string         `json:"id_bank_soal"`
+	NamaBankSoal string         `json:"nama_bank_soal"`
+	Tingkat      string         `json:"tingkat"`
+	WktMulai     string         `json:"wkt_mulai"`
+	WktSelesai   string         `json:"wkt_selesai"`
+	IDKelas      []KelasItem    `json:"id_kelas"`
+	IDJurusan    []JurusanItem  `json:"id_jurusan"`
+	CreatedAt    string         `json:"created_at"`
+	UpdatedAt    string         `json:"updated_at"`
+}
+
+type JadwalListResponse struct {
+	Data      []JadwalResponse `json:"data"`
+	Total     int64            `json:"total"`
+	Page      int              `json:"page"`
+	PageSize  int              `json:"page_size"`
+	TotalPage int              `json:"total_page"`
+}
