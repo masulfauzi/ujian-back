@@ -57,9 +57,11 @@ func (s *jadwalService) CreateJadwal(req *dto.CreateJadwalRequest) (*dto.JadwalR
 
 	jadwal := &model.Jadwal{
 		IDBankSoal: req.IDBankSoal,
+		NamaUjian:  req.NamaUjian,
 		Tingkat:    req.Tingkat,
 		WktMulai:   wktMulai,
 		WktSelesai: wktSelesai,
+		Durasi:     req.Durasi,
 	}
 
 	if err := s.repo.Create(jadwal); err != nil {
@@ -191,9 +193,11 @@ func (s *jadwalService) UpdateJadwal(id string, req *dto.UpdateJadwalRequest) (*
 	}
 
 	existing.IDBankSoal = req.IDBankSoal
+	existing.NamaUjian  = req.NamaUjian
 	existing.Tingkat    = req.Tingkat
 	existing.WktMulai   = wktMulai
 	existing.WktSelesai = wktSelesai
+	existing.Durasi     = req.Durasi
 
 	if err := s.repo.Update(existing); err != nil {
 		return nil, err
@@ -243,9 +247,11 @@ func joinedToResponse(j *repository.JadwalWithBankSoal) *dto.JadwalResponse {
 		ID:           j.ID,
 		IDBankSoal:   j.IDBankSoal,
 		NamaBankSoal: j.NamaBankSoal,
+		NamaUjian:    j.NamaUjian,
 		Tingkat:      j.Tingkat,
 		WktMulai:     j.WktMulai,
 		WktSelesai:   j.WktSelesai,
+		Durasi:       j.Durasi,
 		CreatedAt:    j.CreatedAt,
 		UpdatedAt:    j.UpdatedAt,
 	}
@@ -274,9 +280,11 @@ func jelasToResponse(j *repository.JadwalWithKelas) *dto.JadwalResponse {
 		ID:           j.ID,
 		IDBankSoal:   j.IDBankSoal,
 		NamaBankSoal: j.NamaBankSoal,
+		NamaUjian:    j.NamaUjian,
 		Tingkat:      j.Tingkat,
 		WktMulai:     j.WktMulai,
 		WktSelesai:   j.WktSelesai,
+		Durasi:       j.Durasi,
 		IDKelas:      kelasList,
 		IDJurusan:    jurusanList,
 		CreatedAt:    j.CreatedAt,
