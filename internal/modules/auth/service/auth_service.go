@@ -1,7 +1,11 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"time"
 
 	"backend/configs"
@@ -36,6 +40,11 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		return nil, errors.New(constants.ErrDuplicateEmail)
 	}
 
+	existingUsername, _ := s.repo.GetUserByUsername(req.Username)
+	if existingUsername != nil {
+		return nil, errors.New("username already exists")
+	}
+
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
@@ -43,6 +52,7 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 
 	user := &model.User{
 		Name:     req.Name,
+		Username: req.Username,
 		Email:    req.Email,
 		Password: hashedPassword,
 		Role:     constants.RoleUser,
@@ -68,30 +78,105 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 }
 
 func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
-	user, err := s.repo.GetUserByEmail(req.Email)
+	user, err := s.repo.GetUserByUsername(req.Username)
+	if err == nil && utils.VerifyPassword(user.Password, req.Password) {
+		token, err := s.GenerateToken(user)
+		if err != nil {
+			return nil, err
+		}
+
+		return &dto.AuthResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Token: token,
+			Role:  user.Role,
+		}, nil
+	}
+
+	peserta, err := s.repo.GetPesertaByUsername(req.Username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("invalid email or password")
+			return nil, errors.New("username tidak ditemukan")
 		}
 		return nil, err
 	}
 
-	if !utils.VerifyPassword(user.Password, req.Password) {
-		return nil, errors.New("invalid email or password")
+	isValid, err := s.validateWithExternalAPI(req.Username, req.Password)
+	if err != nil {
+		return nil, err
 	}
 
-	token, err := s.GenerateToken(user)
+	if !isValid {
+		return nil, errors.New("invalid password")
+	}
+
+	tempUser := &model.User{
+		ID:     peserta.ID,
+		Name:   peserta.Nama,
+		Email:  peserta.Username,
+		Role:   "peserta",
+		Status: constants.StatusActive,
+	}
+
+	token, err := s.GenerateToken(tempUser)
 	if err != nil {
 		return nil, err
 	}
 
 	return &dto.AuthResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
+		ID:    tempUser.ID,
+		Name:  tempUser.Name,
+		Email: tempUser.Email,
 		Token: token,
-		Role:  user.Role,
+		Role:  tempUser.Role,
 	}, nil
+}
+
+func (s *authService) validateWithExternalAPI(username, password string) (bool, error) {
+	apiURL := "https://apps.smkn2semarang.sch.id/api/login"
+
+	payload := map[string]string{
+		"username": username,
+		"password": password,
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false, err
+	}
+
+	message, ok := result["message"].(string)
+	if !ok || message != "Login successful" {
+		return false, nil
+	}
+
+	user, ok := result["user"].(map[string]interface{})
+	if !ok || user == nil {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (s *authService) GenerateToken(user *model.User) (string, error) {
