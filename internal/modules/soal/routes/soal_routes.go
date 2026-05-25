@@ -30,5 +30,6 @@ func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 	soal.Patch("/:id/restore", middleware.JWTAuth(), ctrl.RestoreSoal)
 
 	// Public endpoint (GET) - dynamic route at the end
-	soal.Get("/:id", ctrl.GetSoalByID)
+	// JWTOptional: jika ada token, user_id dipakai sebagai seed randomisasi opsi
+	soal.Get("/:id", middleware.JWTOptional(), ctrl.GetSoalByID)
 }

@@ -54,3 +54,16 @@ type JadwalListResponse struct {
 	PageSize  int              `json:"page_size"`
 	TotalPage int              `json:"total_page"`
 }
+
+type JadwalAktifResponse struct {
+	ID                string  `json:"id"`
+	IDBankSoal        string  `json:"id_bank_soal"`
+	NamaBankSoal      string  `json:"nama_bank_soal"`
+	NamaUjian         string  `json:"nama_ujian"`
+	Tingkat           string  `json:"tingkat"`
+	WktMulai          string  `json:"wkt_mulai"`
+	WktSelesai        string  `json:"wkt_selesai"`
+	Durasi            int     `json:"durasi"`
+	IDNilai           *string `json:"id_nilai"`
+	StatusPengerjaan  string  `json:"status_pengerjaan"`
+}

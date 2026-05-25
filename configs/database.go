@@ -29,7 +29,7 @@ func GetDatabaseConfig() *DatabaseConfig {
 }
 
 func (c *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Asia/Jakarta",
 		c.Host,
 		c.Port,
 		c.User,

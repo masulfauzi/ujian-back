@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -28,6 +31,7 @@ type SoalService interface {
 	DeleteSoal(id string) error
 	RestoreSoal(id string) error
 	ImportSoalFromExcel(ctx context.Context, req *dto.ImportSoalRequest) (*dto.ImportSoalResponse, error)
+	RandomizeOpsiForSoal(soal *dto.SoalResponse, pesertaID string) *dto.SoalResponse
 }
 
 type soalService struct {
@@ -329,6 +333,61 @@ func (s *soalService) DeleteSoal(id string) error {
 
 func (s *soalService) RestoreSoal(id string) error {
 	return s.repo.Restore(id)
+}
+
+func (s *soalService) RandomizeOpsiForSoal(soal *dto.SoalResponse, pesertaID string) *dto.SoalResponse {
+	seed := s.generateSeed(pesertaID, soal.ID)
+	rng := rand.New(rand.NewSource(seed))
+
+	opsiMap := map[string]string{
+		"A": soal.OpsiA,
+		"B": soal.OpsiB,
+		"C": soal.OpsiC,
+		"D": soal.OpsiD,
+		"E": soal.OpsiE,
+	}
+	gambarMap := map[string]string{
+		"A": soal.GambarA,
+		"B": soal.GambarB,
+		"C": soal.GambarC,
+		"D": soal.GambarD,
+		"E": soal.GambarE,
+	}
+
+	opsiOrder := []string{"A", "B", "C", "D", "E"}
+	rng.Shuffle(len(opsiOrder), func(i, j int) {
+		opsiOrder[i], opsiOrder[j] = opsiOrder[j], opsiOrder[i]
+	})
+
+	newKunciPos := 0
+	for i, key := range opsiOrder {
+		if key == soal.Kunci {
+			newKunciPos = i
+			break
+		}
+	}
+
+	newKunci := string(rune('A' + newKunciPos))
+
+	soal.OpsiA = opsiMap[opsiOrder[0]]
+	soal.OpsiB = opsiMap[opsiOrder[1]]
+	soal.OpsiC = opsiMap[opsiOrder[2]]
+	soal.OpsiD = opsiMap[opsiOrder[3]]
+	soal.OpsiE = opsiMap[opsiOrder[4]]
+	soal.GambarA = gambarMap[opsiOrder[0]]
+	soal.GambarB = gambarMap[opsiOrder[1]]
+	soal.GambarC = gambarMap[opsiOrder[2]]
+	soal.GambarD = gambarMap[opsiOrder[3]]
+	soal.GambarE = gambarMap[opsiOrder[4]]
+	soal.Kunci = newKunci
+
+	return soal
+}
+
+func (s *soalService) generateSeed(pesertaID, soalID string) int64 {
+	hash := md5.Sum([]byte(pesertaID + "|" + soalID))
+	seed := int64(binary.BigEndian.Uint64(hash[:8]))
+	return seed
 }
 
 func (s *soalService) validateKunci(kunci string, opsiA, opsiB, opsiC, opsiD, opsiE string) error {

@@ -4,9 +4,11 @@ import (
 	banksoalmodel    "backend/internal/modules/bank_soal/model"
 	jadwalmodel      "backend/internal/modules/jadwal/model"
 	jadwalkelasmodel "backend/internal/modules/jadwal_kelas/model"
+	jawabanmodel     "backend/internal/modules/jawaban/model"
 	jurusanmodel     "backend/internal/modules/jurusan/model"
 	kelasmodel       "backend/internal/modules/kelas/model"
 	mapelmodel       "backend/internal/modules/mapel/model"
+	nilaimodel       "backend/internal/modules/nilai/model"
 	pesertamodel     "backend/internal/modules/peserta/model"
 	soalmodel        "backend/internal/modules/soal/model"
 	usermodel        "backend/internal/modules/user/model"
@@ -21,6 +23,14 @@ func RunMigrations(db *gorm.DB) error {
 	db.Exec("DROP INDEX IF EXISTS uni_jurusan_nama_jurusan")
 	db.Exec("DROP INDEX IF EXISTS idx_jurusan_nama_jurusan")
 
+	// Drop NOT NULL & DEFAULT dari kolom jawaban supaya bisa di-set NULL saat bulk-insert
+	db.Exec("ALTER TABLE jawaban ALTER COLUMN jawaban DROP NOT NULL")
+	db.Exec("ALTER TABLE jawaban ALTER COLUMN is_benar DROP NOT NULL")
+	db.Exec("ALTER TABLE jawaban ALTER COLUMN is_benar DROP DEFAULT")
+
+	// Alter is_benar column type dari boolean ke smallint (0 atau 1)
+	db.Exec("ALTER TABLE jawaban ALTER COLUMN is_benar TYPE smallint USING CASE WHEN is_benar THEN 1 ELSE 0 END")
+
 	if err := db.AutoMigrate(
 		&usermodel.User{},
 		&mapelmodel.Mapel{},
@@ -31,12 +41,16 @@ func RunMigrations(db *gorm.DB) error {
 		&jadwalmodel.Jadwal{},
 		&jadwalkelasmodel.JadwalKelas{},
 		&pesertamodel.Peserta{},
+		&nilaimodel.Nilai{},
+		&jawabanmodel.Jawaban{},
 	); err != nil {
 		return err
 	}
 
 	// Buat unique constraint untuk mencegah duplikasi assignment kelas ke jadwal
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jadwal_kelas_unique ON jadwal_kelas(id_jadwal, id_kelas)")
+	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_nilai_peserta_jadwal_unique ON nilai(id_peserta, id_jadwal) WHERE deleted_at IS NULL")
+	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jawaban_nilai_soal_unique ON jawaban(id_nilai, id_soal) WHERE deleted_at IS NULL")
 
 	return nil
 }

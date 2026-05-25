@@ -11,11 +11,14 @@ import (
 	"backend/internal/modules/jadwal/repository"
 	jadwalkelasmodel "backend/internal/modules/jadwal_kelas/model"
 	jadwalkelasrepo "backend/internal/modules/jadwal_kelas/repository"
+	pesertarepo "backend/internal/modules/peserta/repository"
 
 	"gorm.io/gorm"
 )
 
 const timeLayout = "2006-01-02 15:04:05"
+
+var jakartaLoc, _ = time.LoadLocation("Asia/Jakarta")
 
 type JadwalService interface {
 	CreateJadwal(req *dto.CreateJadwalRequest) (*dto.JadwalResponse, error)
@@ -25,24 +28,26 @@ type JadwalService interface {
 	UpdateJadwal(id string, req *dto.UpdateJadwalRequest) (*dto.JadwalResponse, error)
 	DeleteJadwal(id string) error
 	RestoreJadwal(id string) error
+	GetJadwalAktifHariIniByUser(userID string) ([]dto.JadwalAktifResponse, error)
 }
 
 type jadwalService struct {
-	repo           repository.JadwalRepository
+	repo            repository.JadwalRepository
 	jadwalKelasRepo jadwalkelasrepo.JadwalKelasRepository
+	pesertaRepo     pesertarepo.PesertaRepository
 }
 
-func NewJadwalService(repo repository.JadwalRepository, jadwalKelasRepo jadwalkelasrepo.JadwalKelasRepository) JadwalService {
-	return &jadwalService{repo: repo, jadwalKelasRepo: jadwalKelasRepo}
+func NewJadwalService(repo repository.JadwalRepository, jadwalKelasRepo jadwalkelasrepo.JadwalKelasRepository, pesertaRepo pesertarepo.PesertaRepository) JadwalService {
+	return &jadwalService{repo: repo, jadwalKelasRepo: jadwalKelasRepo, pesertaRepo: pesertaRepo}
 }
 
 func (s *jadwalService) CreateJadwal(req *dto.CreateJadwalRequest) (*dto.JadwalResponse, error) {
-	wktMulai, err := time.Parse(timeLayout, req.WktMulai)
+	wktMulai, err := time.ParseInLocation(timeLayout, req.WktMulai, jakartaLoc)
 	if err != nil {
 		return nil, errors.New("format wkt_mulai tidak valid, gunakan: 2006-01-02 15:04:05")
 	}
 
-	wktSelesai, err := time.Parse(timeLayout, req.WktSelesai)
+	wktSelesai, err := time.ParseInLocation(timeLayout, req.WktSelesai, jakartaLoc)
 	if err != nil {
 		return nil, errors.New("format wkt_selesai tidak valid, gunakan: 2006-01-02 15:04:05")
 	}
@@ -174,12 +179,12 @@ func (s *jadwalService) UpdateJadwal(id string, req *dto.UpdateJadwalRequest) (*
 		return nil, err
 	}
 
-	wktMulai, err := time.Parse(timeLayout, req.WktMulai)
+	wktMulai, err := time.ParseInLocation(timeLayout, req.WktMulai, jakartaLoc)
 	if err != nil {
 		return nil, errors.New("format wkt_mulai tidak valid, gunakan: 2006-01-02 15:04:05")
 	}
 
-	wktSelesai, err := time.Parse(timeLayout, req.WktSelesai)
+	wktSelesai, err := time.ParseInLocation(timeLayout, req.WktSelesai, jakartaLoc)
 	if err != nil {
 		return nil, errors.New("format wkt_selesai tidak valid, gunakan: 2006-01-02 15:04:05")
 	}
@@ -240,6 +245,47 @@ func (s *jadwalService) DeleteJadwal(id string) error {
 
 func (s *jadwalService) RestoreJadwal(id string) error {
 	return s.repo.Restore(id)
+}
+
+func (s *jadwalService) GetJadwalAktifHariIniByUser(userID string) ([]dto.JadwalAktifResponse, error) {
+	peserta, err := s.pesertaRepo.GetRawByID(userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("peserta tidak ditemukan")
+		}
+		return nil, err
+	}
+
+	jadwalList, err := s.repo.GetAktifHariIniByKelas(peserta.IDKelas, peserta.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := []dto.JadwalAktifResponse{}
+	for _, j := range jadwalList {
+		status := "belum_mengerjakan"
+		if j.IDNilai != nil {
+			if j.NilaiWktSelesai != nil {
+				status = "sudah_mengerjakan"
+			} else {
+				status = "sedang_mengerjakan"
+			}
+		}
+
+		responses = append(responses, dto.JadwalAktifResponse{
+			ID:               j.ID,
+			IDBankSoal:       j.IDBankSoal,
+			NamaBankSoal:     j.NamaBankSoal,
+			NamaUjian:        j.NamaUjian,
+			Tingkat:          j.Tingkat,
+			WktMulai:         j.WktMulai,
+			WktSelesai:       j.WktSelesai,
+			Durasi:           j.Durasi,
+			IDNilai:          j.IDNilai,
+			StatusPengerjaan: status,
+		})
+	}
+	return responses, nil
 }
 
 func joinedToResponse(j *repository.JadwalWithBankSoal) *dto.JadwalResponse {
