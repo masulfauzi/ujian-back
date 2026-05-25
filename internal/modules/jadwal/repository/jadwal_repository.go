@@ -15,6 +15,7 @@ type JadwalWithBankSoal struct {
 	Tingkat      string  `gorm:"column:tingkat"`
 	WktMulai     string  `gorm:"column:wkt_mulai"`
 	WktSelesai   string  `gorm:"column:wkt_selesai"`
+	Durasi       int     `gorm:"column:durasi"`
 	CreatedAt    string  `gorm:"column:created_at"`
 	UpdatedAt    string  `gorm:"column:updated_at"`
 }
@@ -40,6 +41,7 @@ type JadwalWithKelas struct {
 	Tingkat      string           `json:"tingkat"`
 	WktMulai     string           `json:"wkt_mulai"`
 	WktSelesai   string           `json:"wkt_selesai"`
+	Durasi       int              `json:"durasi"`
 	IDKelas      []KelasDetail    `json:"id_kelas"`
 	IDJurusan    []JurusanDetail  `json:"id_jurusan"`
 	CreatedAt    string           `json:"created_at"`
@@ -85,7 +87,7 @@ func (r *jadwalRepository) GetByIDWithBankSoal(id string) (*JadwalWithBankSoal, 
 	var jadwal JadwalWithBankSoal
 	err := r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id = ? AND jadwal.deleted_at IS NULL", id).
 		First(&jadwal).Error
@@ -99,7 +101,7 @@ func (r *jadwalRepository) GetByIDWithKelas(id string) (*JadwalWithKelas, error)
 	var jadwal JadwalWithBankSoal
 	err := r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id = ? AND jadwal.deleted_at IS NULL", id).
 		First(&jadwal).Error
@@ -146,6 +148,7 @@ func (r *jadwalRepository) GetByIDWithKelas(id string) (*JadwalWithKelas, error)
 		Tingkat:      jadwal.Tingkat,
 		WktMulai:     jadwal.WktMulai,
 		WktSelesai:   jadwal.WktSelesai,
+		Durasi:       jadwal.Durasi,
 		IDKelas:      kelasList,
 		IDJurusan:    jurusanList,
 		CreatedAt:    jadwal.CreatedAt,
@@ -177,7 +180,7 @@ func (r *jadwalRepository) GetAllWithBankSoal(page, pageSize int) ([]JadwalWithB
 
 	err = r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.deleted_at IS NULL").
 		Offset(offset).
@@ -211,7 +214,7 @@ func (r *jadwalRepository) GetByBankSoalID(bankSoalID string, page, pageSize int
 
 	err = r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id_bank_soal = ? AND jadwal.deleted_at IS NULL", bankSoalID).
 		Offset(offset).

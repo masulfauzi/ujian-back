@@ -6,6 +6,7 @@ type CreateJadwalRequest struct {
 	Tingkat    string   `json:"tingkat" validate:"required"`
 	WktMulai   string   `json:"wkt_mulai" validate:"required"`
 	WktSelesai string   `json:"wkt_selesai" validate:"required"`
+	Durasi     int      `json:"durasi" validate:"required,min=1"`
 	IDKelas    []string `json:"id_kelas" validate:"required"`
 }
 
@@ -15,6 +16,7 @@ type UpdateJadwalRequest struct {
 	Tingkat    string   `json:"tingkat" validate:"required"`
 	WktMulai   string   `json:"wkt_mulai" validate:"required"`
 	WktSelesai string   `json:"wkt_selesai" validate:"required"`
+	Durasi     int      `json:"durasi" validate:"required,min=1"`
 	IDKelas    []string `json:"id_kelas" validate:"required"`
 }
 
@@ -38,6 +40,7 @@ type JadwalResponse struct {
 	Tingkat      string         `json:"tingkat"`
 	WktMulai     string         `json:"wkt_mulai"`
 	WktSelesai   string         `json:"wkt_selesai"`
+	Durasi       int            `json:"durasi"`
 	IDKelas      []KelasItem    `json:"id_kelas"`
 	IDJurusan    []JurusanItem  `json:"id_jurusan"`
 	CreatedAt    string         `json:"created_at"`
