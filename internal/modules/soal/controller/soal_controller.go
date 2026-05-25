@@ -71,6 +71,18 @@ func (c *SoalController) GetSoalByID(ctx *fiber.Ctx) error {
 		return helpers.ErrorResponse(ctx, fiber.StatusNotFound, err.Error(), nil)
 	}
 
+	// Prioritas seed: peserta_id query param → user_id dari JWT
+	seed := ctx.Query("peserta_id", "")
+	if seed == "" {
+		if userID, ok := ctx.Locals("user_id").(string); ok {
+			seed = userID
+		}
+	}
+
+	if seed != "" {
+		resp = c.service.RandomizeOpsiForSoal(resp, seed)
+	}
+
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get soal successfully", resp)
 }
 

@@ -14,6 +14,8 @@ import (
 	banksoalroutes "backend/internal/modules/bank_soal/routes"
 	jadwalroutes "backend/internal/modules/jadwal/routes"
 	jadwalkelasroutes "backend/internal/modules/jadwal_kelas/routes"
+	jawabanroutes "backend/internal/modules/jawaban/routes"
+	nilairoutes "backend/internal/modules/nilai/routes"
 	jurusanroutes "backend/internal/modules/jurusan/routes"
 	kelasroutes "backend/internal/modules/kelas/routes"
 	mapelroutes "backend/internal/modules/mapel/routes"
@@ -87,4 +89,6 @@ func setupRoutes(app *fiber.App) {
 	jadwalroutes.SetupJadwalRoutes(app, database.DB)
 	jadwalkelasroutes.SetupJadwalKelasRoutes(app, database.DB)
 	pesertaroutes.SetupPesertaRoutes(app, database.DB)
+	nilairoutes.SetupNilaiRoutes(app, database.DB)
+	jawabanroutes.SetupJawabanRoutes(app, database.DB)
 }

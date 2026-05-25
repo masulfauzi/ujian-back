@@ -40,3 +40,37 @@ func JWTAuth() fiber.Handler {
 		return ctx.Next()
 	}
 }
+
+// JWTOptional mencoba parse JWT tapi tidak memblokir jika tidak ada/invalid.
+// user_id akan tersedia di ctx.Locals("user_id") jika token valid.
+func JWTOptional() fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		authHeader := ctx.Get("Authorization")
+		if authHeader == "" {
+			return ctx.Next()
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			return ctx.Next()
+		}
+
+		jwtConfig := configs.GetJWTConfig()
+		token, err := jwt.ParseWithClaims(parts[1], jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fiber.NewError(fiber.StatusUnauthorized, "Invalid signing method")
+			}
+			return []byte(jwtConfig.Secret), nil
+		})
+
+		if err == nil && token.Valid {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if userID, ok := claims["user_id"].(string); ok {
+					ctx.Locals("user_id", userID)
+				}
+			}
+		}
+
+		return ctx.Next()
+	}
+}

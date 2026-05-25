@@ -8,6 +8,7 @@ import (
 	"backend/internal/modules/jadwal/service"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JadwalController struct {
@@ -125,4 +126,28 @@ func (c *JadwalController) RestoreJadwal(ctx *fiber.Ctx) error {
 	}
 
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Restore jadwal successfully", nil)
+}
+
+func (c *JadwalController) GetJadwalAktifHariIni(ctx *fiber.Ctx) error {
+	token, ok := ctx.Locals("user").(*jwt.Token)
+	if !ok {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, "Invalid token", nil)
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, "Invalid token claims", nil)
+	}
+
+	userID, ok := claims["user_id"].(string)
+	if !ok || userID == "" {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, "user_id tidak ditemukan di token", nil)
+	}
+
+	resp, err := c.service.GetJadwalAktifHariIniByUser(userID)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusInternalServerError, err.Error(), nil)
+	}
+
+	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get jadwal aktif hari ini successfully", resp)
 }

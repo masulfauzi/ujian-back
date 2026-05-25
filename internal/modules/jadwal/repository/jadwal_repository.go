@@ -48,6 +48,19 @@ type JadwalWithKelas struct {
 	UpdatedAt    string           `json:"updated_at"`
 }
 
+type JadwalAktifWithStatus struct {
+	ID           string  `gorm:"column:id"`
+	IDBankSoal   string  `gorm:"column:id_bank_soal"`
+	NamaBankSoal string  `gorm:"column:nama_bank_soal"`
+	NamaUjian    string  `gorm:"column:nama_ujian"`
+	Tingkat      string  `gorm:"column:tingkat"`
+	WktMulai     string  `gorm:"column:wkt_mulai"`
+	WktSelesai   string  `gorm:"column:wkt_selesai"`
+	Durasi       int     `gorm:"column:durasi"`
+	IDNilai      *string `gorm:"column:id_nilai"`
+	NilaiWktSelesai *string `gorm:"column:nilai_wkt_selesai"`
+}
+
 type JadwalRepository interface {
 	Create(jadwal *model.Jadwal) error
 	GetByID(id string) (*model.Jadwal, error)
@@ -55,6 +68,7 @@ type JadwalRepository interface {
 	GetByIDWithKelas(id string) (*JadwalWithKelas, error)
 	GetAllWithBankSoal(page, pageSize int) ([]JadwalWithBankSoal, int64, error)
 	GetByBankSoalID(bankSoalID string, page, pageSize int) ([]JadwalWithBankSoal, int64, error)
+	GetAktifHariIniByKelas(idKelas, idPeserta string) ([]JadwalAktifWithStatus, error)
 	Update(jadwal *model.Jadwal) error
 	Delete(id string) error
 	Restore(id string) error
@@ -87,7 +101,7 @@ func (r *jadwalRepository) GetByIDWithBankSoal(id string) (*JadwalWithBankSoal, 
 	var jadwal JadwalWithBankSoal
 	err := r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id = ? AND jadwal.deleted_at IS NULL", id).
 		First(&jadwal).Error
@@ -101,7 +115,7 @@ func (r *jadwalRepository) GetByIDWithKelas(id string) (*JadwalWithKelas, error)
 	var jadwal JadwalWithBankSoal
 	err := r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id = ? AND jadwal.deleted_at IS NULL", id).
 		First(&jadwal).Error
@@ -180,7 +194,7 @@ func (r *jadwalRepository) GetAllWithBankSoal(page, pageSize int) ([]JadwalWithB
 
 	err = r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.deleted_at IS NULL").
 		Offset(offset).
@@ -214,7 +228,7 @@ func (r *jadwalRepository) GetByBankSoalID(bankSoalID string, page, pageSize int
 
 	err = r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, jadwal.wkt_mulai, jadwal.wkt_selesai, jadwal.durasi, jadwal.created_at, jadwal.updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id_bank_soal = ? AND jadwal.deleted_at IS NULL", bankSoalID).
 		Offset(offset).
@@ -222,6 +236,38 @@ func (r *jadwalRepository) GetByBankSoalID(bankSoalID string, page, pageSize int
 		Scan(&jadwalList).Error
 
 	return jadwalList, total, err
+}
+
+func (r *jadwalRepository) GetAktifHariIniByKelas(idKelas, idPeserta string) ([]JadwalAktifWithStatus, error) {
+	var jadwalList []JadwalAktifWithStatus
+
+	err := r.db.
+		Table("jadwal").
+		Select(`
+			jadwal.id,
+			jadwal.id_bank_soal,
+			bank_soal.nama_bank_soal,
+			jadwal.nama_ujian,
+			jadwal.tingkat,
+			TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai,
+			TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai,
+			jadwal.durasi,
+			nilai.id AS id_nilai,
+			TO_CHAR(nilai.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS nilai_wkt_selesai
+		`).
+		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
+		Joins("INNER JOIN jadwal_kelas ON jadwal_kelas.id_jadwal = jadwal.id").
+		Joins("LEFT JOIN nilai ON nilai.id_jadwal = jadwal.id AND nilai.id_peserta = ? AND nilai.deleted_at IS NULL", idPeserta).
+		Where("jadwal_kelas.id_kelas = ?", idKelas).
+		Where("jadwal.deleted_at IS NULL").
+		Where("DATE(jadwal.wkt_mulai) = CURRENT_DATE").
+		Order("jadwal.wkt_mulai ASC").
+		Scan(&jadwalList).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return jadwalList, nil
 }
 
 func (r *jadwalRepository) Update(jadwal *model.Jadwal) error {
