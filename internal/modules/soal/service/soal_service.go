@@ -47,6 +47,14 @@ func (s *soalService) CreateSoal(req *dto.CreateSoalRequest) (*dto.SoalResponse,
 		return nil, err
 	}
 
+	exists, err := s.repo.CheckDuplicate(req.IdBankSoal, req.NoSoal)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, errors.New("soal dengan no_soal " + fmt.Sprintf("%d", req.NoSoal) + " sudah ada di bank soal ini")
+	}
+
 	var gambarSoalName string
 	if req.GambarSoal != nil {
 		filename, err := utils.SaveImage(req.GambarSoal, "soal")
@@ -394,22 +402,9 @@ func (s *soalService) validateKunci(kunci string, opsiA, opsiB, opsiC, opsiD, op
 	validKeys := map[string]bool{
 		"A": true, "B": true, "C": true, "D": true, "E": true,
 	}
-
 	if !validKeys[kunci] {
 		return errors.New("kunci harus A, B, C, D, atau E")
 	}
-
-	switch kunci {
-	case "D":
-		if opsiD == "" {
-			return errors.New("opsi D tidak boleh kosong jika kunci D")
-		}
-	case "E":
-		if opsiE == "" {
-			return errors.New("opsi E tidak boleh kosong jika kunci E")
-		}
-	}
-
 	return nil
 }
 

@@ -121,11 +121,17 @@ func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest) (*dto.Jawa
 		return nil, errors.New("soal tidak ditemukan")
 	}
 
-	// Reverse-map jawaban dari posisi acak ke posisi asli sebelum dibandingkan kunci
-	originalJawaban := reverseMapJawaban(jawaban, req.IDPeserta, req.IDSoal)
-	isBenarBool := strings.EqualFold(originalJawaban, strings.TrimSpace(kunci))
+	acakOpsi, err := s.repo.GetAcakOpsiByNilaiID(req.IDNilai)
+	if err != nil {
+		return nil, err
+	}
+
+	evaluatedJawaban := jawaban
+	if acakOpsi == 1 {
+		evaluatedJawaban = reverseMapJawaban(jawaban, req.IDPeserta, req.IDSoal)
+	}
 	isBenarInt := 0
-	if isBenarBool {
+	if strings.EqualFold(evaluatedJawaban, strings.TrimSpace(kunci)) {
 		isBenarInt = 1
 	}
 
@@ -215,17 +221,7 @@ func (s *jawabanService) UpdateJawaban(id string, req *dto.UpdateJawabanRequest)
 		return nil, err
 	}
 
-	if req.IDNilai != existing.IDNilai || req.IDSoal != existing.IDSoal {
-		exists, err := s.repo.CheckDuplicate(req.IDNilai, req.IDSoal)
-		if err != nil {
-			return nil, err
-		}
-		if exists {
-			return nil, errors.New("jawaban untuk soal ini di attempt tersebut sudah ada")
-		}
-	}
-
-	kunci, err := s.repo.GetSoalKunci(req.IDSoal)
+	kunci, err := s.repo.GetSoalKunci(existing.IDSoal)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("soal tidak ditemukan")
@@ -236,20 +232,22 @@ func (s *jawabanService) UpdateJawaban(id string, req *dto.UpdateJawabanRequest)
 		return nil, errors.New("soal tidak ditemukan")
 	}
 
-	// Reverse-map jawaban dari posisi acak ke posisi asli sebelum dibandingkan kunci
-	originalJawaban := reverseMapJawaban(jawaban, req.IDPeserta, req.IDSoal)
-	isBenarBool := strings.EqualFold(originalJawaban, strings.TrimSpace(kunci))
+	acakOpsi, err := s.repo.GetAcakOpsiByNilaiID(existing.IDNilai)
+	if err != nil {
+		return nil, err
+	}
+
+	evaluatedJawaban := jawaban
+	if acakOpsi == 1 {
+		evaluatedJawaban = reverseMapJawaban(jawaban, existing.IDPeserta, existing.IDSoal)
+	}
 	isBenarInt := 0
-	if isBenarBool {
+	if strings.EqualFold(evaluatedJawaban, strings.TrimSpace(kunci)) {
 		isBenarInt = 1
 	}
 
-	existing.IDNilai   = req.IDNilai
-	existing.IDSoal    = req.IDSoal
-	existing.IDPeserta = req.IDPeserta
-	existing.NoUrut    = req.NoUrut
-	existing.Jawaban   = &jawaban
-	existing.IsBenar   = &isBenarInt
+	existing.Jawaban = &jawaban
+	existing.IsBenar = &isBenarInt
 
 	if err := s.repo.Update(existing); err != nil {
 		return nil, err
@@ -278,7 +276,15 @@ func (s *jawabanService) RestoreJawaban(id string) error {
 }
 
 func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
-	opsiA, opsiB, opsiC, opsiD, opsiE, gambarA, gambarB, gambarC, gambarD, gambarE, kunci := randomizeOpsi(r)
+	opsiA, opsiB, opsiC, opsiD, opsiE := r.OpsiA, r.OpsiB, r.OpsiC, r.OpsiD, r.OpsiE
+	gambarA, gambarB, gambarC, gambarD, gambarE := r.GambarA, r.GambarB, r.GambarC, r.GambarD, r.GambarE
+	kunci := r.Kunci
+
+	if r.AcakOpsi == 1 {
+		opsiA, opsiB, opsiC, opsiD, opsiE,
+			gambarA, gambarB, gambarC, gambarD, gambarE,
+			kunci = randomizeOpsi(r)
+	}
 
 	return &dto.JawabanResponse{
 		ID:          r.ID,

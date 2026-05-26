@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"backend/internal/helpers"
+	jadwalrepo "backend/internal/modules/jadwal/repository"
 	"backend/internal/modules/soal/dto"
 	"backend/internal/modules/soal/service"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type SoalController struct {
-	service service.SoalService
+	service     service.SoalService
+	jadwalRepo  jadwalrepo.JadwalRepository
 }
 
-func NewSoalController(service service.SoalService) *SoalController {
-	return &SoalController{service: service}
+func NewSoalController(service service.SoalService, jadwalRepo jadwalrepo.JadwalRepository) *SoalController {
+	return &SoalController{service: service, jadwalRepo: jadwalRepo}
 }
 
 func (c *SoalController) CreateSoal(ctx *fiber.Ctx) error {
@@ -71,16 +73,13 @@ func (c *SoalController) GetSoalByID(ctx *fiber.Ctx) error {
 		return helpers.ErrorResponse(ctx, fiber.StatusNotFound, err.Error(), nil)
 	}
 
-	// Prioritas seed: peserta_id query param → user_id dari JWT
-	seed := ctx.Query("peserta_id", "")
-	if seed == "" {
-		if userID, ok := ctx.Locals("user_id").(string); ok {
-			seed = userID
+	// Auto-acak opsi jika request datang dari peserta yang sedang ujian.
+	// Backend cari nilai aktif peserta (via JWT user_id) → ambil acak_opsi dari jadwal-nya.
+	if userID, ok := ctx.Locals("user_id").(string); ok && userID != "" {
+		acakOpsi, err := c.jadwalRepo.GetAcakOpsiForPesertaSoal(userID, id)
+		if err == nil && acakOpsi == 1 {
+			resp = c.service.RandomizeOpsiForSoal(resp, userID)
 		}
-	}
-
-	if seed != "" {
-		resp = c.service.RandomizeOpsiForSoal(resp, seed)
 	}
 
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get soal successfully", resp)

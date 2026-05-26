@@ -31,6 +31,11 @@ func RunMigrations(db *gorm.DB) error {
 	// Alter is_benar column type dari boolean ke smallint (0 atau 1)
 	db.Exec("ALTER TABLE jawaban ALTER COLUMN is_benar TYPE smallint USING CASE WHEN is_benar THEN 1 ELSE 0 END")
 
+	// Alter acak_soal dan acak_opsi dari boolean ke smallint (0 atau 1).
+	// acak_opsi::int::smallint: works for boolean (true→1, false→0) and int/smallint inputs.
+	db.Exec("ALTER TABLE jadwal ALTER COLUMN acak_soal TYPE smallint USING acak_soal::int::smallint")
+	db.Exec("ALTER TABLE jadwal ALTER COLUMN acak_opsi TYPE smallint USING acak_opsi::int::smallint")
+
 	if err := db.AutoMigrate(
 		&usermodel.User{},
 		&mapelmodel.Mapel{},
@@ -51,6 +56,7 @@ func RunMigrations(db *gorm.DB) error {
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jadwal_kelas_unique ON jadwal_kelas(id_jadwal, id_kelas)")
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_nilai_peserta_jadwal_unique ON nilai(id_peserta, id_jadwal) WHERE deleted_at IS NULL")
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jawaban_nilai_soal_unique ON jawaban(id_nilai, id_soal) WHERE deleted_at IS NULL")
+	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_soal_bank_no_unique ON soal(id_bank_soal, no_soal) WHERE deleted_at IS NULL")
 
 	return nil
 }

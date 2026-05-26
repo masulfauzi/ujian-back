@@ -9,11 +9,7 @@ type CreateJawabanRequest struct {
 }
 
 type UpdateJawabanRequest struct {
-	IDNilai   string `json:"id_nilai" validate:"required"`
-	IDSoal    string `json:"id_soal" validate:"required"`
-	IDPeserta string `json:"id_peserta" validate:"required"`
-	NoUrut    int    `json:"no_urut" validate:"required"`
-	Jawaban   string `json:"jawaban" validate:"required,oneof=A B C D E"`
+	Jawaban string `json:"jawaban" validate:"required,oneof=A B C D E"`
 }
 
 type JawabanResponse struct {

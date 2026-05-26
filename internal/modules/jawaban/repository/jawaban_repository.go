@@ -29,6 +29,7 @@ type JawabanWithDetail struct {
 	NamaPeserta string  `gorm:"column:nama_peserta"`
 	Jawaban     *string `gorm:"column:jawaban"`
 	IsBenar     *int    `gorm:"column:is_benar"`
+	AcakOpsi    int     `gorm:"column:acak_opsi"`
 	CreatedAt   string  `gorm:"column:created_at"`
 	UpdatedAt   string  `gorm:"column:updated_at"`
 }
@@ -48,6 +49,7 @@ type JawabanRepository interface {
 	BulkCreateWithTx(tx *gorm.DB, jawabans []model.Jawaban) error
 	SoftDeleteByNilaiID(tx *gorm.DB, nilaiID string) error
 	RestoreByNilaiID(tx *gorm.DB, nilaiID string) error
+	GetAcakOpsiByNilaiID(nilaiID string) (int, error)
 }
 
 type jawabanRepository struct {
@@ -69,6 +71,16 @@ func (r *jawabanRepository) GetByID(id string) (*model.Jawaban, error) {
 		return nil, err
 	}
 	return &jawaban, nil
+}
+
+func (r *jawabanRepository) GetAcakOpsiByNilaiID(nilaiID string) (int, error) {
+	var acakOpsi int
+	err := r.db.Table("nilai").
+		Select("jadwal.acak_opsi::int AS acak_opsi").
+		Joins("INNER JOIN jadwal ON nilai.id_jadwal = jadwal.id").
+		Where("nilai.id = ?", nilaiID).
+		Scan(&acakOpsi).Error
+	return acakOpsi, err
 }
 
 func (r *jawabanRepository) GetByIDWithDetail(id string) (*JawabanWithDetail, error) {
@@ -97,11 +109,14 @@ func (r *jawabanRepository) GetByIDWithDetail(id string) (*JawabanWithDetail, er
 			peserta.nama AS nama_peserta,
 			jawaban.jawaban,
 			jawaban.is_benar,
+			jadwal.acak_opsi::int AS acak_opsi,
 			jawaban.created_at,
 			jawaban.updated_at
 		`).
 		Joins("INNER JOIN soal ON jawaban.id_soal = soal.id").
 		Joins("INNER JOIN peserta ON jawaban.id_peserta = peserta.id").
+		Joins("INNER JOIN nilai ON jawaban.id_nilai = nilai.id").
+		Joins("INNER JOIN jadwal ON nilai.id_jadwal = jadwal.id").
 		Where("jawaban.id = ? AND jawaban.deleted_at IS NULL", id).
 		First(&result).Error
 	if err != nil {
@@ -126,6 +141,8 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 		q := r.db.Table("jawaban").
 			Joins("INNER JOIN soal ON jawaban.id_soal = soal.id").
 			Joins("INNER JOIN peserta ON jawaban.id_peserta = peserta.id").
+			Joins("INNER JOIN nilai ON jawaban.id_nilai = nilai.id").
+			Joins("INNER JOIN jadwal ON nilai.id_jadwal = jadwal.id").
 			Where("jawaban.deleted_at IS NULL")
 		if idNilai != "" {
 			q = q.Where("jawaban.id_nilai = ?", idNilai)
@@ -166,6 +183,7 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 			peserta.nama AS nama_peserta,
 			jawaban.jawaban,
 			jawaban.is_benar,
+			jadwal.acak_opsi::int AS acak_opsi,
 			jawaban.created_at,
 			jawaban.updated_at
 		`).

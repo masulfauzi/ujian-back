@@ -14,6 +14,7 @@ type SoalRepository interface {
 	GetByID(id string) (*model.Soal, error)
 	GetAll(page, pageSize int) ([]model.Soal, int64, error)
 	GetByBankSoalID(bankSoalID string, page, pageSize int) ([]model.Soal, int64, error)
+	CheckDuplicate(bankSoalID string, noSoal int) (bool, error)
 	Update(soal *model.Soal) error
 	Delete(id string) error
 	Restore(id string) error
@@ -73,6 +74,17 @@ func (r *soalRepository) GetAll(page, pageSize int) ([]model.Soal, int64, error)
 		Find(&soals).Error
 
 	return soals, total, err
+}
+
+func (r *soalRepository) CheckDuplicate(bankSoalID string, noSoal int) (bool, error) {
+	var count int64
+	err := r.db.Model(&model.Soal{}).
+		Where("id_bank_soal = ? AND no_soal = ? AND deleted_at IS NULL", bankSoalID, noSoal).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (r *soalRepository) GetByBankSoalID(bankSoalID string, page, pageSize int) ([]model.Soal, int64, error) {

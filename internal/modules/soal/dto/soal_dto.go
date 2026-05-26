@@ -7,12 +7,12 @@ import (
 
 type CreateSoalRequest struct {
 	IdBankSoal  string                 `json:"id_bank_soal" form:"id_bank_soal" validate:"required"`
-	NoSoal      int                    `json:"no_soal" form:"no_soal" validate:"required,min=1"`
-	Soal        string                 `json:"soal" form:"soal" validate:"required"`
+	NoSoal      int                    `json:"no_soal" form:"no_soal"`
+	Soal        string                 `json:"soal" form:"soal"`
 	GambarSoal  *multipart.FileHeader  `form:"gambar_soal"`
-	OpsiA       string                 `json:"opsi_a" form:"opsi_a" validate:"required"`
-	OpsiB       string                 `json:"opsi_b" form:"opsi_b" validate:"required"`
-	OpsiC       string                 `json:"opsi_c" form:"opsi_c" validate:"required"`
+	OpsiA       string                 `json:"opsi_a" form:"opsi_a"`
+	OpsiB       string                 `json:"opsi_b" form:"opsi_b"`
+	OpsiC       string                 `json:"opsi_c" form:"opsi_c"`
 	OpsiD       string                 `json:"opsi_d" form:"opsi_d"`
 	OpsiE       string                 `json:"opsi_e" form:"opsi_e"`
 	GambarA     *multipart.FileHeader  `form:"gambar_a"`
@@ -24,12 +24,12 @@ type CreateSoalRequest struct {
 }
 
 type UpdateSoalRequest struct {
-	NoSoal     int                    `json:"no_soal" form:"no_soal" validate:"required,min=1"`
-	Soal       string                 `json:"soal" form:"soal" validate:"required"`
+	NoSoal     int                    `json:"no_soal" form:"no_soal"`
+	Soal       string                 `json:"soal" form:"soal"`
 	GambarSoal *multipart.FileHeader  `form:"gambar_soal"`
-	OpsiA      string                 `json:"opsi_a" form:"opsi_a" validate:"required"`
-	OpsiB      string                 `json:"opsi_b" form:"opsi_b" validate:"required"`
-	OpsiC      string                 `json:"opsi_c" form:"opsi_c" validate:"required"`
+	OpsiA      string                 `json:"opsi_a" form:"opsi_a"`
+	OpsiB      string                 `json:"opsi_b" form:"opsi_b"`
+	OpsiC      string                 `json:"opsi_c" form:"opsi_c"`
 	OpsiD      string                 `json:"opsi_d" form:"opsi_d"`
 	OpsiE      string                 `json:"opsi_e" form:"opsi_e"`
 	GambarA    *multipart.FileHeader  `form:"gambar_a"`
