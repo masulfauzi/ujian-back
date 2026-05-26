@@ -98,6 +98,7 @@ func (r *soalRepository) GetByBankSoalID(bankSoalID string, page, pageSize int) 
 
 	err = r.db.
 		Where("id_bank_soal = ? AND deleted_at IS NULL", bankSoalID).
+		Order("no_soal ASC").
 		Offset(offset).
 		Limit(pageSize).
 		Find(&soals).Error
