@@ -16,6 +16,8 @@ type JadwalWithBankSoal struct {
 	WktMulai     string  `gorm:"column:wkt_mulai"`
 	WktSelesai   string  `gorm:"column:wkt_selesai"`
 	Durasi       int     `gorm:"column:durasi"`
+	AcakSoal     int     `gorm:"column:acak_soal"`
+	AcakOpsi     int     `gorm:"column:acak_opsi"`
 	CreatedAt    string  `gorm:"column:created_at"`
 	UpdatedAt    string  `gorm:"column:updated_at"`
 }
@@ -34,30 +36,34 @@ type JurusanDetail struct {
 }
 
 type JadwalWithKelas struct {
-	ID           string           `json:"id"`
-	IDBankSoal   string           `json:"id_bank_soal"`
-	NamaBankSoal string           `json:"nama_bank_soal"`
-	NamaUjian    string           `json:"nama_ujian"`
-	Tingkat      string           `json:"tingkat"`
-	WktMulai     string           `json:"wkt_mulai"`
-	WktSelesai   string           `json:"wkt_selesai"`
-	Durasi       int              `json:"durasi"`
-	IDKelas      []KelasDetail    `json:"id_kelas"`
-	IDJurusan    []JurusanDetail  `json:"id_jurusan"`
-	CreatedAt    string           `json:"created_at"`
-	UpdatedAt    string           `json:"updated_at"`
+	ID           string          `json:"id"`
+	IDBankSoal   string          `json:"id_bank_soal"`
+	NamaBankSoal string          `json:"nama_bank_soal"`
+	NamaUjian    string          `json:"nama_ujian"`
+	Tingkat      string          `json:"tingkat"`
+	WktMulai     string          `json:"wkt_mulai"`
+	WktSelesai   string          `json:"wkt_selesai"`
+	Durasi       int             `json:"durasi"`
+	AcakSoal     int             `json:"acak_soal"`
+	AcakOpsi     int             `json:"acak_opsi"`
+	IDKelas      []KelasDetail   `json:"id_kelas"`
+	IDJurusan    []JurusanDetail `json:"id_jurusan"`
+	CreatedAt    string          `json:"created_at"`
+	UpdatedAt    string          `json:"updated_at"`
 }
 
 type JadwalAktifWithStatus struct {
-	ID           string  `gorm:"column:id"`
-	IDBankSoal   string  `gorm:"column:id_bank_soal"`
-	NamaBankSoal string  `gorm:"column:nama_bank_soal"`
-	NamaUjian    string  `gorm:"column:nama_ujian"`
-	Tingkat      string  `gorm:"column:tingkat"`
-	WktMulai     string  `gorm:"column:wkt_mulai"`
-	WktSelesai   string  `gorm:"column:wkt_selesai"`
-	Durasi       int     `gorm:"column:durasi"`
-	IDNilai      *string `gorm:"column:id_nilai"`
+	ID              string  `gorm:"column:id"`
+	IDBankSoal      string  `gorm:"column:id_bank_soal"`
+	NamaBankSoal    string  `gorm:"column:nama_bank_soal"`
+	NamaUjian       string  `gorm:"column:nama_ujian"`
+	Tingkat         string  `gorm:"column:tingkat"`
+	WktMulai        string  `gorm:"column:wkt_mulai"`
+	WktSelesai      string  `gorm:"column:wkt_selesai"`
+	Durasi          int     `gorm:"column:durasi"`
+	AcakSoal        int     `gorm:"column:acak_soal"`
+	AcakOpsi        int     `gorm:"column:acak_opsi"`
+	IDNilai         *string `gorm:"column:id_nilai"`
 	NilaiWktSelesai *string `gorm:"column:nilai_wkt_selesai"`
 }
 
@@ -101,7 +107,7 @@ func (r *jadwalRepository) GetByIDWithBankSoal(id string) (*JadwalWithBankSoal, 
 	var jadwal JadwalWithBankSoal
 	err := r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, jadwal.acak_soal, jadwal.acak_opsi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id = ? AND jadwal.deleted_at IS NULL", id).
 		First(&jadwal).Error
@@ -115,7 +121,7 @@ func (r *jadwalRepository) GetByIDWithKelas(id string) (*JadwalWithKelas, error)
 	var jadwal JadwalWithBankSoal
 	err := r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, jadwal.acak_soal, jadwal.acak_opsi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id = ? AND jadwal.deleted_at IS NULL", id).
 		First(&jadwal).Error
@@ -163,6 +169,8 @@ func (r *jadwalRepository) GetByIDWithKelas(id string) (*JadwalWithKelas, error)
 		WktMulai:     jadwal.WktMulai,
 		WktSelesai:   jadwal.WktSelesai,
 		Durasi:       jadwal.Durasi,
+		AcakSoal:     jadwal.AcakSoal,
+		AcakOpsi:     jadwal.AcakOpsi,
 		IDKelas:      kelasList,
 		IDJurusan:    jurusanList,
 		CreatedAt:    jadwal.CreatedAt,
@@ -194,7 +202,7 @@ func (r *jadwalRepository) GetAllWithBankSoal(page, pageSize int) ([]JadwalWithB
 
 	err = r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, jadwal.acak_soal, jadwal.acak_opsi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.deleted_at IS NULL").
 		Offset(offset).
@@ -228,7 +236,7 @@ func (r *jadwalRepository) GetByBankSoalID(bankSoalID string, page, pageSize int
 
 	err = r.db.
 		Table("jadwal").
-		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
+		Select("jadwal.id, jadwal.id_bank_soal, bank_soal.nama_bank_soal, jadwal.nama_ujian, jadwal.tingkat, TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai, TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai, jadwal.durasi, jadwal.acak_soal, jadwal.acak_opsi, TO_CHAR(jadwal.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at, TO_CHAR(jadwal.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at").
 		Joins("INNER JOIN bank_soal ON jadwal.id_bank_soal = bank_soal.id").
 		Where("jadwal.id_bank_soal = ? AND jadwal.deleted_at IS NULL", bankSoalID).
 		Offset(offset).
@@ -252,6 +260,8 @@ func (r *jadwalRepository) GetAktifHariIniByKelas(idKelas, idPeserta string) ([]
 			TO_CHAR(jadwal.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai,
 			TO_CHAR(jadwal.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai,
 			jadwal.durasi,
+			jadwal.acak_soal,
+			jadwal.acak_opsi,
 			nilai.id AS id_nilai,
 			TO_CHAR(nilai.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS nilai_wkt_selesai
 		`).

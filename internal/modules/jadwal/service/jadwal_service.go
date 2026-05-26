@@ -67,6 +67,8 @@ func (s *jadwalService) CreateJadwal(req *dto.CreateJadwalRequest) (*dto.JadwalR
 		WktMulai:   wktMulai,
 		WktSelesai: wktSelesai,
 		Durasi:     req.Durasi,
+		AcakSoal:   req.AcakSoal,
+		AcakOpsi:   req.AcakOpsi,
 	}
 
 	if err := s.repo.Create(jadwal); err != nil {
@@ -203,6 +205,8 @@ func (s *jadwalService) UpdateJadwal(id string, req *dto.UpdateJadwalRequest) (*
 	existing.WktMulai   = wktMulai
 	existing.WktSelesai = wktSelesai
 	existing.Durasi     = req.Durasi
+	existing.AcakSoal   = req.AcakSoal
+	existing.AcakOpsi   = req.AcakOpsi
 
 	if err := s.repo.Update(existing); err != nil {
 		return nil, err
@@ -281,6 +285,8 @@ func (s *jadwalService) GetJadwalAktifHariIniByUser(userID string) ([]dto.Jadwal
 			WktMulai:         j.WktMulai,
 			WktSelesai:       j.WktSelesai,
 			Durasi:           j.Durasi,
+			AcakSoal:         j.AcakSoal,
+			AcakOpsi:         j.AcakOpsi,
 			IDNilai:          j.IDNilai,
 			StatusPengerjaan: status,
 		})
@@ -298,6 +304,8 @@ func joinedToResponse(j *repository.JadwalWithBankSoal) *dto.JadwalResponse {
 		WktMulai:     j.WktMulai,
 		WktSelesai:   j.WktSelesai,
 		Durasi:       j.Durasi,
+		AcakSoal:     j.AcakSoal,
+		AcakOpsi:     j.AcakOpsi,
 		CreatedAt:    j.CreatedAt,
 		UpdatedAt:    j.UpdatedAt,
 	}
@@ -331,6 +339,8 @@ func jelasToResponse(j *repository.JadwalWithKelas) *dto.JadwalResponse {
 		WktMulai:     j.WktMulai,
 		WktSelesai:   j.WktSelesai,
 		Durasi:       j.Durasi,
+		AcakSoal:     j.AcakSoal,
+		AcakOpsi:     j.AcakOpsi,
 		IDKelas:      kelasList,
 		IDJurusan:    jurusanList,
 		CreatedAt:    j.CreatedAt,
