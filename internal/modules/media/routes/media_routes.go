@@ -2,7 +2,6 @@ package routes
 
 import (
 	"context"
-	"fmt"
 
 	"backend/internal/helpers"
 	"backend/internal/storage"
@@ -31,20 +30,13 @@ func getImage(ctx *fiber.Ctx) error {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "filename tidak boleh kosong", nil)
 	}
 
-	obj, info, err := storage.GetFile(context.Background(), imgType, filename)
+	data, contentType, err := storage.GetFile(context.Background(), imgType, filename)
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusNotFound, "gambar tidak ditemukan", nil)
 	}
-	defer obj.Close()
-
-	contentType := info.ContentType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
 
 	ctx.Set("Content-Type", contentType)
-	ctx.Set("Content-Length", fmt.Sprintf("%d", info.Size))
 	ctx.Set("Cache-Control", "public, max-age=86400")
 
-	return ctx.SendStream(obj, int(info.Size))
+	return ctx.Send(data)
 }
