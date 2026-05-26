@@ -2,7 +2,6 @@ package routes
 
 import (
 	"context"
-	"time"
 
 	"backend/internal/helpers"
 	"backend/internal/storage"
@@ -31,10 +30,13 @@ func getImage(ctx *fiber.Ctx) error {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "filename tidak boleh kosong", nil)
 	}
 
-	presignedURL, err := storage.GeneratePresignedURL(context.Background(), imgType, filename, 20*time.Minute)
+	data, contentType, err := storage.GetFile(context.Background(), imgType, filename)
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusNotFound, "gambar tidak ditemukan", nil)
 	}
 
-	return ctx.Redirect(presignedURL, fiber.StatusFound)
+	ctx.Set("Content-Type", contentType)
+	ctx.Set("Cache-Control", "public, max-age=86400")
+
+	return ctx.Send(data)
 }

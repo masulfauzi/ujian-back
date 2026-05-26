@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
@@ -97,6 +98,34 @@ func DeleteFile(ctx context.Context, folder, filename string) error {
 	cfg := config.GetMinioConfig()
 	objectName := folder + "/" + filename
 	return minioClient.RemoveObject(ctx, cfg.Bucket, objectName, minio.RemoveObjectOptions{})
+}
+
+func GetFile(ctx context.Context, folder, filename string) ([]byte, string, error) {
+	cfg := config.GetMinioConfig()
+	objectName := folder + "/" + filename
+
+	obj, err := minioClient.GetObject(ctx, cfg.Bucket, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, "", fmt.Errorf("gagal mengambil file dari MinIO: %w", err)
+	}
+	defer obj.Close()
+
+	info, err := obj.Stat()
+	if err != nil {
+		return nil, "", fmt.Errorf("file tidak ditemukan: %w", err)
+	}
+
+	data := make([]byte, info.Size)
+	if _, err := io.ReadFull(obj, data); err != nil {
+		return nil, "", fmt.Errorf("gagal membaca file: %w", err)
+	}
+
+	contentType := info.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	return data, contentType, nil
 }
 
 func GeneratePresignedURL(ctx context.Context, folder, filename string, expiry time.Duration) (string, error) {
