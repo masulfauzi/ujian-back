@@ -99,6 +99,16 @@ func DeleteFile(ctx context.Context, folder, filename string) error {
 	return minioClient.RemoveObject(ctx, cfg.Bucket, objectName, minio.RemoveObjectOptions{})
 }
 
+func GeneratePresignedURL(ctx context.Context, folder, filename string, expiry time.Duration) (string, error) {
+	cfg := config.GetMinioConfig()
+	objectName := folder + "/" + filename
+	u, err := minioClient.PresignedGetObject(ctx, cfg.Bucket, objectName, expiry, nil)
+	if err != nil {
+		return "", fmt.Errorf("gagal generate presigned URL: %w", err)
+	}
+	return u.String(), nil
+}
+
 func generateRandomString(length int) string {
 	b := make([]byte, length/2)
 	if _, err := rand.Read(b); err != nil {
