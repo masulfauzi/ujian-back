@@ -281,9 +281,14 @@ func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiRespons
 	// 3. Belum ada → transaction: insert nilai + bulk insert jawaban
 	var newNilaiID string
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		// 3a. Get jadwal untuk dapatkan id_bank_soal
+		// 3a. Get jadwal untuk dapatkan id_bank_soal.
+		// SELECT eksplisit + cast ke int agar acak_soal/acak_opsi terbaca
+		// walau kolom DB masih boolean.
 		var jadwal jadwalmodel.Jadwal
-		if err := tx.Where("id = ? AND deleted_at IS NULL", idJadwal).First(&jadwal).Error; err != nil {
+		if err := tx.Table("jadwal").
+			Select("id, id_bank_soal, nama_ujian, tingkat, wkt_mulai, wkt_selesai, durasi, acak_soal::int AS acak_soal, acak_opsi::int AS acak_opsi, created_at, updated_at, deleted_at").
+			Where("id = ? AND deleted_at IS NULL", idJadwal).
+			First(&jadwal).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.New("jadwal tidak ditemukan")
 			}
@@ -305,29 +310,43 @@ func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiRespons
 		}
 		newNilaiID = nilai.ID
 
-		// 3c. Query soal random by bank_soal
+		// 3c. Query soal by bank_soal — acak jika acak_soal=1, urut jika 0
 		var soals []soalmodel.Soal
-		if err := tx.
-			Where("id_bank_soal = ? AND deleted_at IS NULL", jadwal.IDBankSoal).
-			Order("RANDOM()").
-			Find(&soals).Error; err != nil {
+		soalQuery := tx.Where("id_bank_soal = ? AND deleted_at IS NULL", jadwal.IDBankSoal)
+		if jadwal.AcakSoal == 1 {
+			soalQuery = soalQuery.Order("RANDOM()")
+		} else {
+			soalQuery = soalQuery.Order("no_soal ASC")
+		}
+		if err := soalQuery.Find(&soals).Error; err != nil {
 			return err
 		}
 
-		// 3d. Build & bulk insert jawaban kosong dengan no_urut random
+		// 3d. Build & bulk insert jawaban kosong
 		if len(soals) > 0 {
-			// Create randomized no_urut sequence
-			noUrutSequence := rand.Perm(len(soals))
-
 			jawabans := make([]jawabanmodel.Jawaban, len(soals))
-			for i, soal := range soals {
-				jawabans[i] = jawabanmodel.Jawaban{
-					IDNilai:   nilai.ID,
-					IDSoal:    soal.ID,
-					IDPeserta: idPeserta,
-					NoUrut:    noUrutSequence[i] + 1,
-					Jawaban:   nil,
-					IsBenar:   nil,
+			if jadwal.AcakSoal == 1 {
+				noUrutSequence := rand.Perm(len(soals))
+				for i, soal := range soals {
+					jawabans[i] = jawabanmodel.Jawaban{
+						IDNilai:   nilai.ID,
+						IDSoal:    soal.ID,
+						IDPeserta: idPeserta,
+						NoUrut:    noUrutSequence[i] + 1,
+						Jawaban:   nil,
+						IsBenar:   nil,
+					}
+				}
+			} else {
+				for i, soal := range soals {
+					jawabans[i] = jawabanmodel.Jawaban{
+						IDNilai:   nilai.ID,
+						IDSoal:    soal.ID,
+						IDPeserta: idPeserta,
+						NoUrut:    i + 1,
+						Jawaban:   nil,
+						IsBenar:   nil,
+					}
 				}
 			}
 			if err := s.jawabanRepo.BulkCreateWithTx(tx, jawabans); err != nil {

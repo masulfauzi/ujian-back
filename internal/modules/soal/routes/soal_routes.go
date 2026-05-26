@@ -2,6 +2,7 @@ package routes
 
 import (
 	"backend/internal/middleware"
+	jadwalrepo "backend/internal/modules/jadwal/repository"
 	"backend/internal/modules/soal/controller"
 	"backend/internal/modules/soal/repository"
 	"backend/internal/modules/soal/service"
@@ -13,7 +14,8 @@ import (
 func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 	repo := repository.NewSoalRepository(db)
 	svc := service.NewSoalService(repo)
-	ctrl := controller.NewSoalController(svc)
+	jadwalRepo := jadwalrepo.NewJadwalRepository(db)
+	ctrl := controller.NewSoalController(svc, jadwalRepo)
 
 	api := app.Group("/api")
 	soal := api.Group("/soal")

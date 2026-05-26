@@ -2,20 +2,17 @@ buatkan issue.md yang berisi perencanaan untuk nanti diimplementasikan oleh juni
 
 isi dari perencanaannya adalah sebagai berikut:
 
-buatkan migration dan seeder untuk tabel peserta.
-kolom dari tabel peserta yaitu:
-- id
-- nama
-- id_kelas (relasi dengan tabel kelas)
-- username
-- password
+tambahkan logika untuk insert tabel nilai.
+setelah insert nilai, ambil semua data dari tabel soal where id_jadwal = id_jadwal order by rand().
+insert data tersebut ke tabel jawaban dengan mapping sebagai berikut:
+- id_nilai diambil dari tabel nilai
+- id_soal diambil dari tabel soal
+- jawaban null
+- is_benar null
+- id_peserta diambil dari tabel peserta
+- no_urut di isi urut sesuai order by rand()
 
-tambahkan kolom tambahan untuk mencatat waktu dan deleted_at untuk soft delete.
-
-jalankan migration dan seeder.
-
-buatkan api endpoint untuk menangani CRUD peserta.
-buatkan dokumentasi penggunaan endpoint peserta.
+buatkan juga dokumentasinya agar mudah dalam implementasi di frontend
 
 
 jelaskan tahapan yang harus dilakukan untuk mengimplementasikan fitur ini.
