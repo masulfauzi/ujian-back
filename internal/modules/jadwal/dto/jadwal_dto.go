@@ -7,6 +7,8 @@ type CreateJadwalRequest struct {
 	WktMulai   string   `json:"wkt_mulai" validate:"required"`
 	WktSelesai string   `json:"wkt_selesai" validate:"required"`
 	Durasi     int      `json:"durasi" validate:"required,min=1"`
+	AcakSoal   int      `json:"acak_soal"`
+	AcakOpsi   int      `json:"acak_opsi"`
 	IDKelas    []string `json:"id_kelas" validate:"required"`
 }
 
@@ -17,6 +19,8 @@ type UpdateJadwalRequest struct {
 	WktMulai   string   `json:"wkt_mulai" validate:"required"`
 	WktSelesai string   `json:"wkt_selesai" validate:"required"`
 	Durasi     int      `json:"durasi" validate:"required,min=1"`
+	AcakSoal   int      `json:"acak_soal"`
+	AcakOpsi   int      `json:"acak_opsi"`
 	IDKelas    []string `json:"id_kelas" validate:"required"`
 }
 
@@ -41,6 +45,8 @@ type JadwalResponse struct {
 	WktMulai     string         `json:"wkt_mulai"`
 	WktSelesai   string         `json:"wkt_selesai"`
 	Durasi       int            `json:"durasi"`
+	AcakSoal     int            `json:"acak_soal"`
+	AcakOpsi     int            `json:"acak_opsi"`
 	IDKelas      []KelasItem    `json:"id_kelas"`
 	IDJurusan    []JurusanItem  `json:"id_jurusan"`
 	CreatedAt    string         `json:"created_at"`
@@ -56,14 +62,16 @@ type JadwalListResponse struct {
 }
 
 type JadwalAktifResponse struct {
-	ID                string  `json:"id"`
-	IDBankSoal        string  `json:"id_bank_soal"`
-	NamaBankSoal      string  `json:"nama_bank_soal"`
-	NamaUjian         string  `json:"nama_ujian"`
-	Tingkat           string  `json:"tingkat"`
-	WktMulai          string  `json:"wkt_mulai"`
-	WktSelesai        string  `json:"wkt_selesai"`
-	Durasi            int     `json:"durasi"`
-	IDNilai           *string `json:"id_nilai"`
-	StatusPengerjaan  string  `json:"status_pengerjaan"`
+	ID               string  `json:"id"`
+	IDBankSoal       string  `json:"id_bank_soal"`
+	NamaBankSoal     string  `json:"nama_bank_soal"`
+	NamaUjian        string  `json:"nama_ujian"`
+	Tingkat          string  `json:"tingkat"`
+	WktMulai         string  `json:"wkt_mulai"`
+	WktSelesai       string  `json:"wkt_selesai"`
+	Durasi           int     `json:"durasi"`
+	AcakSoal         int     `json:"acak_soal"`
+	AcakOpsi         int     `json:"acak_opsi"`
+	IDNilai          *string `json:"id_nilai"`
+	StatusPengerjaan string  `json:"status_pengerjaan"`
 }
