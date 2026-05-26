@@ -99,6 +99,21 @@ func DeleteFile(ctx context.Context, folder, filename string) error {
 	return minioClient.RemoveObject(ctx, cfg.Bucket, objectName, minio.RemoveObjectOptions{})
 }
 
+func GetFile(ctx context.Context, folder, filename string) (*minio.Object, minio.ObjectInfo, error) {
+	cfg := config.GetMinioConfig()
+	objectName := folder + "/" + filename
+	obj, err := minioClient.GetObject(ctx, cfg.Bucket, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, minio.ObjectInfo{}, fmt.Errorf("gagal mengambil file dari MinIO: %w", err)
+	}
+	info, err := obj.Stat()
+	if err != nil {
+		obj.Close()
+		return nil, minio.ObjectInfo{}, fmt.Errorf("file tidak ditemukan: %w", err)
+	}
+	return obj, info, nil
+}
+
 func GeneratePresignedURL(ctx context.Context, folder, filename string, expiry time.Duration) (string, error) {
 	cfg := config.GetMinioConfig()
 	objectName := folder + "/" + filename
