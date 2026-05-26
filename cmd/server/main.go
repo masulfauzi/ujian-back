@@ -10,6 +10,7 @@ import (
 	"backend/configs"
 	"backend/internal/database"
 	"backend/internal/middleware"
+	"backend/internal/storage"
 	authroutes "backend/internal/modules/auth/routes"
 	banksoalroutes "backend/internal/modules/bank_soal/routes"
 	jadwalroutes "backend/internal/modules/jadwal/routes"
@@ -39,6 +40,10 @@ func main() {
 
 	if err := database.RunMigrations(database.DB); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	if err := storage.InitMinioClient(); err != nil {
+		log.Fatalf("Failed to initialize MinIO: %v", err)
 	}
 
 	app := fiber.New(fiber.Config{

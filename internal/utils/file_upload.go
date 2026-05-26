@@ -1,16 +1,14 @@
 package utils
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"context"
 	"fmt"
 	"mime/multipart"
-	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"backend/internal/config"
+	"backend/internal/storage"
 )
 
 func SaveImage(file *multipart.FileHeader, folder string) (string, error) {
@@ -22,56 +20,18 @@ func SaveImage(file *multipart.FileHeader, folder string) (string, error) {
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	ext = strings.TrimPrefix(ext, ".")
-
 	if !isAllowedFormat(ext, cfg.AllowedFormats) {
 		return "", fmt.Errorf("format file tidak diizinkan: %s", ext)
 	}
 
-	timestamp := time.Now().Unix()
-	randomStr := generateRandomString(8)
-	newFilename := fmt.Sprintf("%d_%s.%s", timestamp, randomStr, ext)
-
-	uploadPath := filepath.Join(cfg.ImageUploadPath, folder)
-
-	if err := os.MkdirAll(uploadPath, 0755); err != nil {
-		return "", fmt.Errorf("gagal membuat folder: %v", err)
-	}
-
-	src, err := file.Open()
-	if err != nil {
-		return "", fmt.Errorf("gagal membuka file: %v", err)
-	}
-	defer src.Close()
-
-	filePath := filepath.Join(uploadPath, newFilename)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("gagal membuat file: %v", err)
-	}
-	defer dst.Close()
-
-	_, err = dst.ReadFrom(src)
-	if err != nil {
-		os.Remove(filePath)
-		return "", fmt.Errorf("gagal menyimpan file: %v", err)
-	}
-
-	return newFilename, nil
+	return storage.UploadFile(context.Background(), folder, file)
 }
 
 func DeleteImage(filename string, folder string) error {
 	if filename == "" {
 		return nil
 	}
-
-	cfg := config.GetUploadConfig()
-	filePath := filepath.Join(cfg.ImageUploadPath, folder, filename)
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil
-	}
-
-	return os.Remove(filePath)
+	return storage.DeleteFile(context.Background(), folder, filename)
 }
 
 func isAllowedFormat(ext string, allowed []string) bool {
@@ -81,12 +41,4 @@ func isAllowedFormat(ext string, allowed []string) bool {
 		}
 	}
 	return false
-}
-
-func generateRandomString(length int) string {
-	bytes := make([]byte, length/2)
-	if _, err := rand.Read(bytes); err != nil {
-		return fmt.Sprintf("%d", time.Now().UnixNano())
-	}
-	return hex.EncodeToString(bytes)
 }
