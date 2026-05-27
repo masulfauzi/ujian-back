@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SoalRepository interface {
@@ -136,7 +137,27 @@ func (r *soalRepository) HardDelete(id string) error {
 }
 
 func (r *soalRepository) BulkCreateSoal(ctx context.Context, soals []model.Soal) error {
-	return r.db.WithContext(ctx).CreateInBatches(soals, 100).Error
+	if len(soals) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "id_bank_soal"},
+				{Name: "no_soal"},
+			},
+			TargetWhere: clause.Where{
+				Exprs: []clause.Expression{clause.Expr{SQL: "deleted_at IS NULL"}},
+			},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"soal",
+				"opsi_a", "opsi_b", "opsi_c", "opsi_d", "opsi_e",
+				"gambar_soal", "gambar_a", "gambar_b", "gambar_c", "gambar_d", "gambar_e",
+				"kunci",
+				"updated_at",
+			}),
+		}).
+		CreateInBatches(soals, 100).Error
 }
 
 func (r *soalRepository) GetBankSoalExists(ctx context.Context, bankSoalID string) (bool, error) {
