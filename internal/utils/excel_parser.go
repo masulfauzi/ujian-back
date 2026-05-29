@@ -36,13 +36,13 @@ func ParseExcelRow(values []string, rowIndex int) (*ExcelSoalRow, error) {
 
 	// Parse no_soal (Column A, index 0)
 	noSoalStr := getValueAt(0)
-	if noSoalStr == "" {
-		return nil, fmt.Errorf("no_soal tidak boleh kosong")
-	}
-
-	noSoal, err := strconv.Atoi(noSoalStr)
-	if err != nil {
-		return nil, fmt.Errorf("no_soal harus berupa angka, got: %v", noSoalStr)
+	var noSoal int
+	if noSoalStr != "" {
+		parsed, err := strconv.Atoi(noSoalStr)
+		if err != nil {
+			return nil, fmt.Errorf("no_soal harus berupa angka, got: %v", noSoalStr)
+		}
+		noSoal = parsed
 	}
 
 	return &ExcelSoalRow{
