@@ -12,6 +12,7 @@ type AppConfig struct {
 	Port        int
 	Env         string
 	FrontendURL string
+	ServerNo    string
 }
 
 func LoadEnv() error {
@@ -24,6 +25,7 @@ func GetAppConfig() *AppConfig {
 		Port:        getEnvInt("APP_PORT", 3000),
 		Env:         getEnv("APP_ENV", "development"),
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+		ServerNo:    getEnv("SERVER_NO", "1"),
 	}
 }
 
