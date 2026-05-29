@@ -1,6 +1,9 @@
 package config
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 type UploadConfig struct {
 	ImageUploadPath string
@@ -19,4 +22,12 @@ func GetUploadConfig() UploadConfig {
 		AllowedFormats:  []string{"jpg", "jpeg", "png", "gif", "webp"},
 		ImageBaseURL:    imageBaseURL,
 	}
+}
+
+func GetSoalImageSourceURL() string {
+	url := os.Getenv("SOAL_IMAGE_SOURCE_URL")
+	if url == "" {
+		url = "https://apps.smkn2semarang.sch.id/ujian/soal/"
+	}
+	return strings.TrimRight(url, "/") + "/"
 }

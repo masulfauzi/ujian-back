@@ -1,12 +1,14 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -82,6 +84,46 @@ func UploadFile(ctx context.Context, folder string, file *multipart.FileHeader) 
 
 	cfg := config.GetMinioConfig()
 	_, err = minioClient.PutObject(ctx, cfg.Bucket, objectName, src, file.Size, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return "", fmt.Errorf("gagal upload ke MinIO: %w", err)
+	}
+
+	return filename, nil
+}
+
+// DownloadAndUploadFromURL mengunduh file dari sourceURL lalu upload ke MinIO.
+// Mengembalikan filename yang tersimpan di MinIO (bukan path lengkap).
+func DownloadAndUploadFromURL(ctx context.Context, sourceURL, folder string) (string, error) {
+	resp, err := http.Get(sourceURL)
+	if err != nil {
+		return "", fmt.Errorf("gagal download dari %s: %w", sourceURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("gagal download dari %s: HTTP %d", sourceURL, resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("gagal membaca response body: %w", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(sourceURL))
+	timestamp := time.Now().Unix()
+	randomStr := generateRandomString(8)
+	filename := fmt.Sprintf("%d_%s%s", timestamp, randomStr, ext)
+	objectName := folder + "/" + filename
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	cfg := config.GetMinioConfig()
+	_, err = minioClient.PutObject(ctx, cfg.Bucket, objectName, bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"backend/internal/modules/soal/dto"
 	"backend/internal/modules/soal/model"
 	"backend/internal/modules/soal/repository"
+	"backend/internal/storage"
 	"backend/internal/utils"
 
 	"github.com/xuri/excelize/v2"
@@ -431,6 +432,17 @@ func (s *soalService) modelToResponse(soal *model.Soal) *dto.SoalResponse {
 	}
 }
 
+func (s *soalService) downloadGambar(ctx context.Context, sourceBase, filename, folder string) string {
+	if filename == "" {
+		return ""
+	}
+	stored, err := storage.DownloadAndUploadFromURL(ctx, sourceBase+filename, folder)
+	if err != nil {
+		return ""
+	}
+	return stored
+}
+
 func (s *soalService) buildImageURL(filename, folder string) string {
 	if filename == "" {
 		return ""
@@ -499,6 +511,15 @@ func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSo
 			continue
 		}
 
+		// Upload gambar dari source URL ke MinIO jika ada
+		sourceBase := config.GetSoalImageSourceURL()
+		gambarSoal := s.downloadGambar(ctx, sourceBase, excelRow.GambarSoal, "soal")
+		gambarA    := s.downloadGambar(ctx, sourceBase, excelRow.GambarA,    "opsi")
+		gambarB    := s.downloadGambar(ctx, sourceBase, excelRow.GambarB,    "opsi")
+		gambarC    := s.downloadGambar(ctx, sourceBase, excelRow.GambarC,    "opsi")
+		gambarD    := s.downloadGambar(ctx, sourceBase, excelRow.GambarD,    "opsi")
+		gambarE    := s.downloadGambar(ctx, sourceBase, excelRow.GambarE,    "opsi")
+
 		// Create soal model
 		soal := model.Soal{
 			IdBankSoal: req.IdBankSoal,
@@ -510,12 +531,12 @@ func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSo
 			OpsiD:      excelRow.OpsiD,
 			OpsiE:      excelRow.OpsiE,
 			Kunci:      excelRow.Kunci,
-			GambarSoal: excelRow.GambarSoal,
-			GambarA:    excelRow.GambarA,
-			GambarB:    excelRow.GambarB,
-			GambarC:    excelRow.GambarC,
-			GambarD:    excelRow.GambarD,
-			GambarE:    excelRow.GambarE,
+			GambarSoal: gambarSoal,
+			GambarA:    gambarA,
+			GambarB:    gambarB,
+			GambarC:    gambarC,
+			GambarD:    gambarD,
+			GambarE:    gambarE,
 		}
 
 		soals = append(soals, soal)
