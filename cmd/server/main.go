@@ -54,7 +54,7 @@ func main() {
 	app.Use(middleware.Logger())
 	app.Use(middleware.Recovery())
 
-	setupRoutes(app)
+	setupRoutes(app, appConfig)
 
 	go func() {
 		addr := fmt.Sprintf(":%d", appConfig.Port)
@@ -74,11 +74,12 @@ func main() {
 	log.Println("Server shut down successfully")
 }
 
-func setupRoutes(app *fiber.App) {
+func setupRoutes(app *fiber.App, appConfig *configs.AppConfig) {
 	app.Get("/health", func(ctx *fiber.Ctx) error {
 		return ctx.JSON(fiber.Map{
-			"status": "ok",
-			"service": "Fiber Backend API",
+			"status":     "ok",
+			"service":    "Fiber Backend API",
+			"server-no":  appConfig.ServerNo,
 		})
 	})
 
