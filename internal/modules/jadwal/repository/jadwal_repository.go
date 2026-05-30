@@ -273,7 +273,7 @@ func (r *jadwalRepository) GetAktifHariIniByKelas(idKelas, idPeserta string) ([]
 		Joins("LEFT JOIN nilai ON nilai.id_jadwal = jadwal.id AND nilai.id_peserta = ? AND nilai.deleted_at IS NULL", idPeserta).
 		Where("jadwal_kelas.id_kelas = ?", idKelas).
 		Where("jadwal.deleted_at IS NULL").
-		Where("DATE(jadwal.wkt_mulai) = CURRENT_DATE").
+		Where("DATE(jadwal.wkt_mulai) <= CURRENT_DATE AND DATE(jadwal.wkt_selesai) >= CURRENT_DATE").
 		Order("jadwal.wkt_mulai ASC").
 		Scan(&jadwalList).Error
 
