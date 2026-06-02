@@ -9,14 +9,22 @@ import (
 	"backend/internal/constants"
 	jawabanmodel "backend/internal/modules/jawaban/model"
 	jawabanrepo "backend/internal/modules/jawaban/repository"
+	jadwalmodel "backend/internal/modules/jadwal/model"
 	"backend/internal/modules/nilai/dto"
 	"backend/internal/modules/nilai/model"
 	"backend/internal/modules/nilai/repository"
 	soalmodel "backend/internal/modules/soal/model"
-	jadwalmodel "backend/internal/modules/jadwal/model"
 
 	"gorm.io/gorm"
 )
+
+var jakartaLoc, _ = time.LoadLocation("Asia/Jakarta")
+
+func init() {
+	if jakartaLoc == nil {
+		jakartaLoc = time.FixedZone("WIB", 7*60*60)
+	}
+}
 
 type NilaiService interface {
 	CreateNilai(req *dto.CreateNilaiRequest) (*dto.NilaiResponse, error)
@@ -296,7 +304,7 @@ func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiRespons
 		}
 
 		// 3b. Insert nilai baru
-		now := time.Now()
+		now := time.Now().In(jakartaLoc)
 		nilai := &model.Nilai{
 			IDPeserta:         idPeserta,
 			IDJadwal:          idJadwal,
