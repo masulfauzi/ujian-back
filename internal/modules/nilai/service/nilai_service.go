@@ -1,9 +1,13 @@
 package service
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"math/rand"
+	"strings"
 	"time"
 
 	"backend/internal/constants"
@@ -15,6 +19,7 @@ import (
 	"backend/internal/modules/nilai/repository"
 	soalmodel "backend/internal/modules/soal/model"
 
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +29,11 @@ func init() {
 	if jakartaLoc == nil {
 		jakartaLoc = time.FixedZone("WIB", 7*60*60)
 	}
+}
+
+type ExportResult struct {
+	ZipBytes  []byte
+	NamaUjian string
 }
 
 type NilaiService interface {
@@ -36,6 +46,7 @@ type NilaiService interface {
 	DeleteNilai(id string) error
 	RestoreNilai(id string) error
 	MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiResponse, bool, error)
+	ExportNilaiByJadwal(idJadwal string) (*ExportResult, error)
 }
 
 type nilaiService struct {
@@ -391,4 +402,126 @@ func detailToResponse(r *repository.NilaiWithDetail) *dto.NilaiResponse {
 		CreatedAt:         r.CreatedAt,
 		UpdatedAt:         r.UpdatedAt,
 	}
+}
+
+func (s *nilaiService) ExportNilaiByJadwal(idJadwal string) (*ExportResult, error) {
+	// 1. Ambil nama ujian dari tabel jadwal
+	var namaUjian string
+	if err := s.db.Table("jadwal").
+		Select("nama_ujian").
+		Where("id = ? AND deleted_at IS NULL", idJadwal).
+		Scan(&namaUjian).Error; err != nil || namaUjian == "" {
+		return nil, errors.New("jadwal tidak ditemukan")
+	}
+
+	// 2. Ambil nama mapel dari jadwal
+	type JadwalDetail struct {
+		IDBankSoal string `gorm:"column:id_bank_soal"`
+	}
+	var jadwalDetail JadwalDetail
+	if err := s.db.Table("jadwal").
+		Select("id_bank_soal").
+		Where("id = ? AND deleted_at IS NULL", idJadwal).
+		Scan(&jadwalDetail).Error; err != nil {
+		return nil, err
+	}
+
+	var namaMapel string
+	if err := s.db.Table("bank_soal").
+		Select("mapel.nama_mapel").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.id = ? AND bank_soal.deleted_at IS NULL", jadwalDetail.IDBankSoal).
+		Scan(&namaMapel).Error; err != nil || namaMapel == "" {
+		return nil, errors.New("mapel tidak ditemukan untuk jadwal ini")
+	}
+
+	// 3. Ambil semua kelas yang terdaftar pada jadwal ini
+	type KelasRow struct {
+		IDKelas   string `gorm:"column:id_kelas"`
+		NamaKelas string `gorm:"column:nama_kelas"`
+	}
+	var kelasList []KelasRow
+	if err := s.db.Table("jadwal_kelas").
+		Select("jadwal_kelas.id_kelas, kelas.nama_kelas").
+		Joins("INNER JOIN kelas ON jadwal_kelas.id_kelas = kelas.id").
+		Where("jadwal_kelas.id_jadwal = ?", idJadwal).
+		Scan(&kelasList).Error; err != nil {
+		return nil, err
+	}
+	if len(kelasList) == 0 {
+		return nil, errors.New("tidak ada kelas yang terdaftar pada jadwal ini")
+	}
+
+	// 4. Buat ZIP di memory
+	var zipBuf bytes.Buffer
+	zipWriter := zip.NewWriter(&zipBuf)
+
+	for _, kelas := range kelasList {
+		// 4a. Ambil data nilai peserta untuk kelas ini
+		rows, err := s.repo.GetByJadwalAndKelas(idJadwal, kelas.IDKelas)
+		if err != nil {
+			return nil, fmt.Errorf("gagal ambil data kelas %s: %w", kelas.NamaKelas, err)
+		}
+
+		// 4b. Buat file Excel
+		xlsx := excelize.NewFile()
+		sheet := "Nilai Ujian"
+		xlsx.SetSheetName("Sheet1", sheet)
+
+		// Header
+		headers := []string{"No", "Nama Peserta", "Username", "Nilai", "Waktu Mulai", "Waktu Selesai"}
+		for col, h := range headers {
+			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+			xlsx.SetCellValue(sheet, cell, h)
+		}
+
+		// Data rows
+		for i, row := range rows {
+			rowNum := i + 2
+			xlsx.SetCellValue(sheet, fmt.Sprintf("A%d", rowNum), i+1)
+			xlsx.SetCellValue(sheet, fmt.Sprintf("B%d", rowNum), row.NamaPeserta)
+			xlsx.SetCellValue(sheet, fmt.Sprintf("C%d", rowNum), row.Username)
+			xlsx.SetCellValue(sheet, fmt.Sprintf("D%d", rowNum), row.Nilai)
+
+			wktMulai := "-"
+			if row.WktMulai != nil {
+				wktMulai = *row.WktMulai
+			}
+			xlsx.SetCellValue(sheet, fmt.Sprintf("E%d", rowNum), wktMulai)
+
+			wktSelesai := "-"
+			if row.WktSelesai != nil {
+				wktSelesai = *row.WktSelesai
+			}
+			xlsx.SetCellValue(sheet, fmt.Sprintf("F%d", rowNum), wktSelesai)
+		}
+
+		// 4c. Tulis Excel ke buffer lalu masukkan ke ZIP
+		var xlsBuf bytes.Buffer
+		if err := xlsx.Write(&xlsBuf); err != nil {
+			return nil, fmt.Errorf("gagal tulis excel kelas %s: %w", kelas.NamaKelas, err)
+		}
+
+		// Nama file: {MAPEL}_{KELAS}.xlsx (spasi diganti underscore)
+		safeMapel := strings.ReplaceAll(namaMapel, " ", "_")
+		safeKelas := strings.ReplaceAll(kelas.NamaKelas, " ", "_")
+		filename := fmt.Sprintf("%s_%s.xlsx", safeMapel, safeKelas)
+
+		zipEntry, err := zipWriter.Create(filename)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := zipEntry.Write(xlsBuf.Bytes()); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		return nil, err
+	}
+
+	return &ExportResult{
+		ZipBytes:  zipBuf.Bytes(),
+		NamaUjian: namaUjian,
+	}, nil
 }
