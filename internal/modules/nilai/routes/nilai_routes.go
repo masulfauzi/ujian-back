@@ -23,6 +23,7 @@ func SetupNilaiRoutes(app *fiber.App, db *gorm.DB) {
 	// Dua-segmen path: aman dari konflik dengan /:id (beda kedalaman)
 	nilai.Get("/peserta/:id_peserta", ctrl.GetNilaiByPeserta)
 	nilai.Get("/jadwal/:id_jadwal", ctrl.GetNilaiByJadwal)
+	nilai.Get("/export/:id_jadwal", middleware.JWTAuth(), ctrl.ExportNilai)
 	nilai.Post("/mulai-ujian/:id_jadwal", middleware.JWTAuth(), ctrl.MulaiUjian)
 
 	nilai.Post("/", middleware.JWTAuth(), ctrl.CreateNilai)

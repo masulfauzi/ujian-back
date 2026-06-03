@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"backend/internal/helpers"
 	"backend/internal/modules/nilai/dto"
@@ -182,4 +184,23 @@ func (c *NilaiController) MulaiUjian(ctx *fiber.Ctx) error {
 		return helpers.SuccessResponse(ctx, fiber.StatusCreated, "Mulai ujian successfully", resp)
 	}
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Lanjutkan ujian successfully", resp)
+}
+
+func (c *NilaiController) ExportNilai(ctx *fiber.Ctx) error {
+	idJadwal := ctx.Params("id_jadwal")
+	if idJadwal == "" {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "id_jadwal tidak boleh kosong", nil)
+	}
+
+	result, err := c.service.ExportNilaiByJadwal(idJadwal)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	safeNama := strings.ReplaceAll(result.NamaUjian, " ", "_")
+	filename := fmt.Sprintf("export_nilai_%s.zip", safeNama)
+
+	ctx.Set("Content-Type", "application/zip")
+	ctx.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	return ctx.Send(result.ZipBytes)
 }

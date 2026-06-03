@@ -21,6 +21,14 @@ type NilaiWithDetail struct {
 	UpdatedAt         string  `gorm:"column:updated_at"`
 }
 
+type NilaiExportRow struct {
+	NamaPeserta string  `gorm:"column:nama_peserta"`
+	Username    string  `gorm:"column:username"`
+	Nilai       float64 `gorm:"column:nilai"`
+	WktMulai    *string `gorm:"column:wkt_mulai"`
+	WktSelesai  *string `gorm:"column:wkt_selesai"`
+}
+
 type NilaiRepository interface {
 	Create(nilai *model.Nilai) error
 	GetByID(id string) (*model.Nilai, error)
@@ -28,6 +36,7 @@ type NilaiRepository interface {
 	GetAllWithDetail(page, pageSize int, idPeserta, idJadwal string) ([]NilaiWithDetail, int64, error)
 	GetByPesertaID(idPeserta string, page, pageSize int) ([]NilaiWithDetail, int64, error)
 	GetByJadwalID(idJadwal string, page, pageSize int) ([]NilaiWithDetail, int64, error)
+	GetByJadwalAndKelas(idJadwal, idKelas string) ([]NilaiExportRow, error)
 	CheckDuplicate(idPeserta, idJadwal string) (bool, error)
 	GetByPesertaAndJadwal(idPeserta, idJadwal string) (*model.Nilai, error)
 	HitungNilai(idNilai string) (float64, error)
@@ -148,6 +157,24 @@ func (r *nilaiRepository) GetByPesertaID(idPeserta string, page, pageSize int) (
 
 func (r *nilaiRepository) GetByJadwalID(idJadwal string, page, pageSize int) ([]NilaiWithDetail, int64, error) {
 	return r.GetAllWithDetail(page, pageSize, "", idJadwal)
+}
+
+func (r *nilaiRepository) GetByJadwalAndKelas(idJadwal, idKelas string) ([]NilaiExportRow, error) {
+	var results []NilaiExportRow
+	err := r.db.
+		Table("peserta").
+		Select(`
+			peserta.nama AS nama_peserta,
+			peserta.username,
+			COALESCE(nilai.nilai, 0) AS nilai,
+			TO_CHAR(nilai.wkt_mulai AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai,
+			TO_CHAR(nilai.wkt_selesai AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai
+		`).
+		Joins("LEFT JOIN nilai ON peserta.id = nilai.id_peserta AND nilai.id_jadwal = ? AND nilai.deleted_at IS NULL", idJadwal).
+		Where("peserta.id_kelas = ? AND peserta.deleted_at IS NULL", idKelas).
+		Order("peserta.nama ASC").
+		Scan(&results).Error
+	return results, err
 }
 
 func (r *nilaiRepository) CheckDuplicate(idPeserta, idJadwal string) (bool, error) {
