@@ -21,7 +21,7 @@ func NewJadwalController(service service.JadwalService) *JadwalController {
 
 // CreateJadwal godoc
 // @Summary Buat jadwal ujian baru
-// @Description Jadwal ujian menghubungkan satu bank soal dengan satu atau lebih kelas peserta, beserta jendela waktu, durasi pengerjaan, dan opsi acak soal/opsi jawaban.
+// @Description Jadwal ujian menghubungkan satu bank soal dengan satu atau lebih kelas peserta, beserta jendela waktu, durasi pengerjaan, dan opsi acak soal/opsi jawaban. Set wajib_token=1 jika peserta harus memasukkan token ujian (lihat GET /ujian-token/current) sebelum bisa mulai mengerjakan; token bersifat opsional per jadwal (default wajib_token=0, tidak perlu token).
 // @Tags Jadwal
 // @Accept json
 // @Produce json
@@ -130,6 +130,7 @@ func (c *JadwalController) GetJadwalByID(ctx *fiber.Ctx) error {
 
 // UpdateJadwal godoc
 // @Summary Update jadwal
+// @Description Set wajib_token=1 jika peserta harus memasukkan token ujian (lihat GET /ujian-token/current) sebelum bisa mulai mengerjakan; wajib_token=0 berarti jadwal ini tidak butuh token.
 // @Tags Jadwal
 // @Accept json
 // @Produce json

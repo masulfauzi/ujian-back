@@ -1,5 +1,11 @@
 package dto
 
+// MulaiUjianRequest adalah body opsional untuk endpoint mulai-ujian.
+// Token hanya wajib diisi jika jadwal terkait mengaktifkan wajib_token.
+type MulaiUjianRequest struct {
+	Token string `json:"token"`
+}
+
 type CreateNilaiRequest struct {
 	IDPeserta         string  `json:"id_peserta" validate:"required"`
 	IDJadwal          string  `json:"id_jadwal" validate:"required"`

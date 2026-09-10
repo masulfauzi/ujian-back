@@ -579,7 +579,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Jadwal ujian menghubungkan satu bank soal dengan satu atau lebih kelas peserta, beserta jendela waktu, durasi pengerjaan, dan opsi acak soal/opsi jawaban.",
+                "description": "Jadwal ujian menghubungkan satu bank soal dengan satu atau lebih kelas peserta, beserta jendela waktu, durasi pengerjaan, dan opsi acak soal/opsi jawaban. Set wajib_token=1 jika peserta harus memasukkan token ujian (lihat GET /ujian-token/current) sebelum bisa mulai mengerjakan; token bersifat opsional per jadwal (default wajib_token=0, tidak perlu token).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1050,6 +1050,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Set wajib_token=1 jika peserta harus memasukkan token ujian (lihat GET /ujian-token/current) sebelum bisa mulai mengerjakan; wajib_token=0 berarti jadwal ini tidak butuh token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2774,7 +2775,10 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Dipanggil peserta saat membuka jadwal ujian. Jika belum pernah mulai, sesi nilai baru dibuat beserta seluruh baris jawaban kosong (soal diacak jika acak_soal aktif) dan status 201 dikembalikan. Jika sesi sudah ada dan belum wkt_selesai, dianggap resume dan status 200 dikembalikan. Jika sudah wkt_selesai, request ditolak.",
+                "description": "Dipanggil peserta saat membuka jadwal ujian. Jika belum pernah mulai, sesi nilai baru dibuat beserta seluruh baris jawaban kosong (soal diacak jika acak_soal aktif) dan status 201 dikembalikan. Jika sesi sudah ada dan belum wkt_selesai, dianggap resume dan status 200 dikembalikan (token tidak perlu dikirim ulang saat resume). Jika sudah wkt_selesai, request ditolak. Body token bersifat opsional secara umum — hanya wajib diisi jika jadwal ini mengaktifkan wajib_token; ambil kode yang berlaku lewat GET /ujian-token/current.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -2789,6 +2793,14 @@ const docTemplate = `{
                         "name": "id_jadwal",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Token ujian (wajib hanya jika jadwal.wajib_token aktif)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_modules_nilai_dto.MulaiUjianRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -2829,13 +2841,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Jadwal tidak ditemukan atau ujian sudah pernah selesai dikerjakan",
+                        "description": "Jadwal tidak ditemukan, ujian sudah pernah selesai dikerjakan, atau token ujian tidak valid/kedaluwarsa",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
                     },
                     "401": {
-                        "description": "Token tidak valid",
+                        "description": "Token JWT tidak valid",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
@@ -4314,6 +4326,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/ujian-token/current": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Token bersifat global (bukan per-jadwal) dan berubah otomatis setiap periode (default 15 menit, lihat UJIAN_TOKEN_PERIOD). Kode yang sama berlaku untuk semua jadwal yang mengaktifkan wajib_token, termasuk saat beberapa jadwal berjalan bersamaan — tinggal umumkan/tampilkan kode ini ke peserta di awal sesi ujian, lalu peserta mengirimkannya kembali saat memanggil /nilai/mulai-ujian/{id_jadwal}.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "UjianToken"
+                ],
+                "summary": "Ambil token ujian yang sedang berlaku",
+                "responses": {
+                    "200": {
+                        "description": "Get current token successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/backend_internal_helpers.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/backend_internal_modules_ujian_token_dto.CurrentTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "description": "Mengambil daftar seluruh user (admin/guru).",
@@ -4795,6 +4844,9 @@ const docTemplate = `{
                 "tingkat": {
                     "type": "string"
                 },
+                "wajib_token": {
+                    "type": "integer"
+                },
                 "wkt_mulai": {
                     "type": "string"
                 },
@@ -4835,6 +4887,9 @@ const docTemplate = `{
                 },
                 "tingkat": {
                     "type": "string"
+                },
+                "wajib_token": {
+                    "type": "integer"
                 },
                 "wkt_mulai": {
                     "type": "string"
@@ -4912,6 +4967,9 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string"
                 },
+                "wajib_token": {
+                    "type": "integer"
+                },
                 "wkt_mulai": {
                     "type": "string"
                 },
@@ -4984,6 +5042,9 @@ const docTemplate = `{
                 },
                 "tingkat": {
                     "type": "string"
+                },
+                "wajib_token": {
+                    "type": "integer"
                 },
                 "wkt_mulai": {
                     "type": "string"
@@ -5490,6 +5551,14 @@ const docTemplate = `{
                 }
             }
         },
+        "backend_internal_modules_nilai_dto.MulaiUjianRequest": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "backend_internal_modules_nilai_dto.NilaiListResponse": {
             "type": "object",
             "properties": {
@@ -5898,6 +5967,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "backend_internal_modules_ujian_token_dto.CurrentTokenResponse": {
+            "type": "object",
+            "properties": {
+                "periode_detik": {
+                    "type": "integer"
+                },
+                "sisa_detik": {
+                    "type": "integer"
+                },
+                "token": {
                     "type": "string"
                 }
             }

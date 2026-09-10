@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"backend/configs"
 	"backend/internal/constants"
+	"backend/internal/utils"
 	jawabanmodel "backend/internal/modules/jawaban/model"
 	jawabanrepo "backend/internal/modules/jawaban/repository"
 	jadwalmodel "backend/internal/modules/jadwal/model"
@@ -56,7 +58,7 @@ type NilaiService interface {
 	UpdateNilai(id string, req *dto.UpdateNilaiRequest) (*dto.NilaiResponse, error)
 	DeleteNilai(id string) error
 	RestoreNilai(id string) error
-	MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiResponse, bool, error)
+	MulaiUjian(idPeserta, idJadwal, token string) (*dto.NilaiResponse, bool, error)
 	ExportNilaiByJadwal(idJadwal string) (*ExportResult, error)
 	AdvanceSection(idNilai, idPeserta string) (*dto.SectionProgressResponse, error)
 	GetSectionStatus(idNilai, idPeserta string) (*dto.SectionProgressResponse, error)
@@ -292,7 +294,7 @@ func (s *nilaiService) RestoreNilai(id string) error {
 	})
 }
 
-func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiResponse, bool, error) {
+func (s *nilaiService) MulaiUjian(idPeserta, idJadwal, token string) (*dto.NilaiResponse, bool, error) {
 	// 1. Cek apakah record sudah ada
 	existing, err := s.repo.GetByPesertaAndJadwal(idPeserta, idJadwal)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -320,13 +322,22 @@ func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiRespons
 		// walau kolom DB masih boolean.
 		var jadwal jadwalmodel.Jadwal
 		if err := tx.Table("jadwal").
-			Select("id, id_bank_soal, nama_ujian, tingkat, wkt_mulai, wkt_selesai, durasi, acak_soal::int AS acak_soal, acak_opsi::int AS acak_opsi, created_at, updated_at, deleted_at").
+			Select("id, id_bank_soal, nama_ujian, tingkat, wkt_mulai, wkt_selesai, durasi, acak_soal::int AS acak_soal, acak_opsi::int AS acak_opsi, wajib_token::int AS wajib_token, created_at, updated_at, deleted_at").
 			Where("id = ? AND deleted_at IS NULL", idJadwal).
 			First(&jadwal).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.New("jadwal tidak ditemukan")
 			}
 			return err
+		}
+
+		// 3a-bis. Jika jadwal mewajibkan token, validasi token TOTP global yang berlaku saat ini
+		// (berubah tiap UJIAN_TOKEN_PERIOD, dipakai bersama oleh semua jadwal yang mewajibkannya).
+		if jadwal.WajibToken == 1 {
+			tokenCfg := configs.GetUjianTokenConfig()
+			if token == "" || !utils.ValidateTOTP(tokenCfg.Secret, token, time.Now(), tokenCfg.Period, tokenCfg.Digits, tokenCfg.GraceSteps) {
+				return errors.New("token ujian tidak valid atau sudah kedaluwarsa")
+			}
 		}
 
 		// 3b. Insert nilai baru

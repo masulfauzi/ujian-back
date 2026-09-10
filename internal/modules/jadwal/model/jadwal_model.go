@@ -14,6 +14,7 @@ type Jadwal struct {
 	Durasi      int        `gorm:"type:integer;not null" json:"durasi"`
 	AcakSoal    int        `gorm:"type:smallint;not null;default:0" json:"acak_soal"`
 	AcakOpsi    int        `gorm:"type:smallint;not null;default:0" json:"acak_opsi"`
+	WajibToken  int        `gorm:"type:smallint;not null;default:0" json:"wajib_token"`
 	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt   *time.Time `gorm:"index" json:"deleted_at"`

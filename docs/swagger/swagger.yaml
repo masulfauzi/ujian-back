@@ -145,6 +145,8 @@ definitions:
         type: string
       tingkat:
         type: string
+      wajib_token:
+        type: integer
       wkt_mulai:
         type: string
       wkt_selesai:
@@ -180,6 +182,8 @@ definitions:
         type: string
       tingkat:
         type: string
+      wajib_token:
+        type: integer
       wkt_mulai:
         type: string
       wkt_selesai:
@@ -230,6 +234,8 @@ definitions:
         type: string
       updated_at:
         type: string
+      wajib_token:
+        type: integer
       wkt_mulai:
         type: string
       wkt_selesai:
@@ -272,6 +278,8 @@ definitions:
         type: string
       tingkat:
         type: string
+      wajib_token:
+        type: integer
       wkt_mulai:
         type: string
       wkt_selesai:
@@ -618,6 +626,11 @@ definitions:
     - id_peserta
     - nilai
     type: object
+  backend_internal_modules_nilai_dto.MulaiUjianRequest:
+    properties:
+      token:
+        type: string
+    type: object
   backend_internal_modules_nilai_dto.NilaiListResponse:
     properties:
       data:
@@ -889,6 +902,15 @@ definitions:
       soal:
         type: string
       updated_at:
+        type: string
+    type: object
+  backend_internal_modules_ujian_token_dto.CurrentTokenResponse:
+    properties:
+      periode_detik:
+        type: integer
+      sisa_detik:
+        type: integer
+      token:
         type: string
     type: object
   backend_internal_modules_user_dto.CreateUserRequest:
@@ -1283,7 +1305,9 @@ paths:
       - application/json
       description: Jadwal ujian menghubungkan satu bank soal dengan satu atau lebih
         kelas peserta, beserta jendela waktu, durasi pengerjaan, dan opsi acak soal/opsi
-        jawaban.
+        jawaban. Set wajib_token=1 jika peserta harus memasukkan token ujian (lihat
+        GET /ujian-token/current) sebelum bisa mulai mengerjakan; token bersifat opsional
+        per jadwal (default wajib_token=0, tidak perlu token).
       parameters:
       - description: Data jadwal
         in: body
@@ -1523,6 +1547,9 @@ paths:
     put:
       consumes:
       - application/json
+      description: Set wajib_token=1 jika peserta harus memasukkan token ujian (lihat
+        GET /ujian-token/current) sebelum bisa mulai mengerjakan; wajib_token=0 berarti
+        jadwal ini tidak butuh token.
       parameters:
       - description: ID jadwal (uuid)
         in: path
@@ -2810,17 +2837,26 @@ paths:
       - Nilai
   /nilai/mulai-ujian/{id_jadwal}:
     post:
+      consumes:
+      - application/json
       description: Dipanggil peserta saat membuka jadwal ujian. Jika belum pernah
         mulai, sesi nilai baru dibuat beserta seluruh baris jawaban kosong (soal diacak
         jika acak_soal aktif) dan status 201 dikembalikan. Jika sesi sudah ada dan
-        belum wkt_selesai, dianggap resume dan status 200 dikembalikan. Jika sudah
-        wkt_selesai, request ditolak.
+        belum wkt_selesai, dianggap resume dan status 200 dikembalikan (token tidak
+        perlu dikirim ulang saat resume). Jika sudah wkt_selesai, request ditolak.
+        Body token bersifat opsional secara umum — hanya wajib diisi jika jadwal ini
+        mengaktifkan wajib_token; ambil kode yang berlaku lewat GET /ujian-token/current.
       parameters:
       - description: ID jadwal (uuid)
         in: path
         name: id_jadwal
         required: true
         type: string
+      - description: Token ujian (wajib hanya jika jadwal.wajib_token aktif)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/backend_internal_modules_nilai_dto.MulaiUjianRequest'
       produces:
       - application/json
       responses:
@@ -2843,11 +2879,12 @@ paths:
                   $ref: '#/definitions/backend_internal_modules_nilai_dto.NilaiResponse'
               type: object
         "400":
-          description: Jadwal tidak ditemukan atau ujian sudah pernah selesai dikerjakan
+          description: Jadwal tidak ditemukan, ujian sudah pernah selesai dikerjakan,
+            atau token ujian tidak valid/kedaluwarsa
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
         "401":
-          description: Token tidak valid
+          description: Token JWT tidak valid
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
       security:
@@ -3588,6 +3625,30 @@ paths:
       summary: Import soal dari file Excel
       tags:
       - Soal
+  /ujian-token/current:
+    get:
+      description: Token bersifat global (bukan per-jadwal) dan berubah otomatis setiap
+        periode (default 15 menit, lihat UJIAN_TOKEN_PERIOD). Kode yang sama berlaku
+        untuk semua jadwal yang mengaktifkan wajib_token, termasuk saat beberapa jadwal
+        berjalan bersamaan — tinggal umumkan/tampilkan kode ini ke peserta di awal
+        sesi ujian, lalu peserta mengirimkannya kembali saat memanggil /nilai/mulai-ujian/{id_jadwal}.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get current token successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/backend_internal_helpers.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/backend_internal_modules_ujian_token_dto.CurrentTokenResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ambil token ujian yang sedang berlaku
+      tags:
+      - UjianToken
   /users:
     get:
       description: Mengambil daftar seluruh user (admin/guru).

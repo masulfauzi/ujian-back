@@ -9,6 +9,7 @@ type CreateJadwalRequest struct {
 	Durasi     int      `json:"durasi" validate:"required,min=1"`
 	AcakSoal   int      `json:"acak_soal"`
 	AcakOpsi   int      `json:"acak_opsi"`
+	WajibToken int      `json:"wajib_token"`
 	IDKelas    []string `json:"id_kelas" validate:"required"`
 }
 
@@ -21,6 +22,7 @@ type UpdateJadwalRequest struct {
 	Durasi     int      `json:"durasi" validate:"required,min=1"`
 	AcakSoal   int      `json:"acak_soal"`
 	AcakOpsi   int      `json:"acak_opsi"`
+	WajibToken int      `json:"wajib_token"`
 	IDKelas    []string `json:"id_kelas" validate:"required"`
 }
 
@@ -47,6 +49,7 @@ type JadwalResponse struct {
 	Durasi       int            `json:"durasi"`
 	AcakSoal     int            `json:"acak_soal"`
 	AcakOpsi     int            `json:"acak_opsi"`
+	WajibToken   int            `json:"wajib_token"`
 	IDKelas      []KelasItem    `json:"id_kelas"`
 	IDJurusan    []JurusanItem  `json:"id_jurusan"`
 	CreatedAt    string         `json:"created_at"`
@@ -72,6 +75,7 @@ type JadwalAktifResponse struct {
 	Durasi           int     `json:"durasi"`
 	AcakSoal         int     `json:"acak_soal"`
 	AcakOpsi         int     `json:"acak_opsi"`
+	WajibToken       int     `json:"wajib_token"`
 	IDNilai          *string `json:"id_nilai"`
 	StatusPengerjaan string  `json:"status_pengerjaan"`
 }
