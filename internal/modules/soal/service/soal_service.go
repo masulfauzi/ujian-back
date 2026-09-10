@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/binary"
@@ -33,6 +34,7 @@ type SoalService interface {
 	RestoreSoal(id string) error
 	ImportSoalFromExcel(ctx context.Context, req *dto.ImportSoalRequest) (*dto.ImportSoalResponse, error)
 	RandomizeOpsiForSoal(soal *dto.SoalResponse, pesertaID string) *dto.SoalResponse
+	GenerateImportTemplate() ([]byte, error)
 }
 
 type soalService struct {
@@ -570,4 +572,37 @@ func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSo
 		},
 		Errors: errorDetails,
 	}, nil
+}
+
+// GenerateImportTemplate membuat file .xlsx berisi header kolom yang sama persis dengan
+// urutan yang dibaca utils.ParseExcelRow saat import (kolom I dan K sengaja dikosongkan/
+// tidak dipakai, tapi tetap disediakan agar kolom sesudahnya tidak bergeser index).
+func (s *soalService) GenerateImportTemplate() ([]byte, error) {
+	xlsx := excelize.NewFile()
+	defer xlsx.Close()
+
+	sheet := "Template Soal"
+	xlsx.SetSheetName("Sheet1", sheet)
+
+	headers := []string{
+		"no_soal", "soal", "opsi_a", "opsi_b", "opsi_c", "opsi_d", "opsi_e", "kunci",
+		"(tidak digunakan)", "gambar_soal", "(tidak digunakan)",
+		"gambar_a", "gambar_b", "gambar_c", "gambar_d", "gambar_e",
+	}
+	for col, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+		xlsx.SetCellValue(sheet, cell, h)
+	}
+
+	widths := []float64{8, 40, 25, 25, 25, 25, 25, 8, 18, 20, 18, 18, 18, 18, 18, 18}
+	for col, w := range widths {
+		colName, _ := excelize.ColumnNumberToName(col + 1)
+		xlsx.SetColWidth(sheet, colName, colName, w)
+	}
+
+	var buf bytes.Buffer
+	if err := xlsx.Write(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

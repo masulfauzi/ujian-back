@@ -374,3 +374,32 @@ func (c *NilaiController) ExportNilai(ctx *fiber.Ctx) error {
 	ctx.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	return ctx.Send(result.ZipBytes)
 }
+
+// AnalisisSoal godoc
+// @Summary Export analisis jawaban per soal ke Excel (per kelas, dalam ZIP)
+// @Description Menghasilkan ZIP berisi satu .xlsx per kelas: baris = peserta, kolom = soal (diurutkan berdasarkan no_soal, konsisten walau acak_soal aktif). Cell berisi huruf jawaban peserta, diwarnai hijau (benar), merah (salah), atau kuning (belum dijawab) — cell kosong tanpa warna berarti peserta belum pernah mulai ujian ini. Baris paling bawah menunjukkan jumlah peserta yang benar per soal, untuk melihat soal mana yang paling banyak dijawab salah.
+// @Tags Nilai
+// @Produce application/zip
+// @Security BearerAuth
+// @Param id_jadwal path string true "ID jadwal (uuid)"
+// @Success 200 {file} file "File ZIP berisi analisis jawaban per kelas"
+// @Failure 400 {object} helpers.Response "Jadwal tidak ditemukan, belum memiliki soal, atau tidak ada kelas terdaftar"
+// @Router /nilai/analisis/{id_jadwal} [get]
+func (c *NilaiController) AnalisisSoal(ctx *fiber.Ctx) error {
+	idJadwal := ctx.Params("id_jadwal")
+	if idJadwal == "" {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "id_jadwal tidak boleh kosong", nil)
+	}
+
+	result, err := c.service.AnalisisSoalByJadwal(idJadwal)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	safeNama := strings.ReplaceAll(result.NamaUjian, " ", "_")
+	filename := fmt.Sprintf("analisis_soal_%s.zip", safeNama)
+
+	ctx.Set("Content-Type", "application/zip")
+	ctx.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	return ctx.Send(result.ZipBytes)
+}

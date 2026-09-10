@@ -2662,6 +2662,46 @@
                 }
             }
         },
+        "/nilai/analisis/{id_jadwal}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menghasilkan ZIP berisi satu .xlsx per kelas: baris = peserta, kolom = soal (diurutkan berdasarkan no_soal, konsisten walau acak_soal aktif). Cell berisi huruf jawaban peserta, diwarnai hijau (benar), merah (salah), atau kuning (belum dijawab) — cell kosong tanpa warna berarti peserta belum pernah mulai ujian ini. Baris paling bawah menunjukkan jumlah peserta yang benar per soal, untuk melihat soal mana yang paling banyak dijawab salah.",
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "Nilai"
+                ],
+                "summary": "Export analisis jawaban per soal ke Excel (per kelas, dalam ZIP)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID jadwal (uuid)",
+                        "name": "id_jadwal",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File ZIP berisi analisis jawaban per kelas",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Jadwal tidak ditemukan, belum memiliki soal, atau tidak ada kelas terdaftar",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/nilai/export/{id_jadwal}": {
             "get": {
                 "security": [
@@ -3316,6 +3356,46 @@
                     },
                     "400": {
                         "description": "Validasi gagal",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/peserta/kartu-ujian/{id_kelas}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Menghasilkan PDF berisi kartu untuk setiap peserta di kelas tersebut, ditata grid 2x5 kartu per halaman A4 dengan garis putus-putus sebagai panduan gunting. Kartu ini bersifat global (tidak terikat jadwal/ujian tertentu) — hanya menampilkan nama, username, dan kelas, tanpa password.",
+                "produces": [
+                    "application/pdf"
+                ],
+                "tags": [
+                    "Peserta"
+                ],
+                "summary": "Download kartu peserta ujian satu kelas (PDF, siap cetak \u0026 gunting)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID kelas (uuid)",
+                        "name": "id_kelas",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File kartu_ujian_\u003ckelas\u003e.pdf",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Kelas tidak ditemukan atau belum memiliki peserta",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
@@ -4052,6 +4132,32 @@
                     },
                     "400": {
                         "description": "File tidak valid atau import gagal",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/soal/template": {
+            "get": {
+                "description": "Menghasilkan file .xlsx kosong (hanya header) dengan urutan kolom yang sama persis dengan yang dibaca endpoint import (POST /soal/import) — no_soal, soal, opsi_a-e, kunci, lalu gambar_soal \u0026 gambar_a-e (kolom I dan K sengaja dikosongkan, jangan dihapus/disisipi supaya kolom lain tidak bergeser).",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "Soal"
+                ],
+                "summary": "Download template Excel untuk import soal",
+                "responses": {
+                    "200": {
+                        "description": "File template_import_soal.xlsx",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "500": {
+                        "description": "Gagal membuat file template",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }

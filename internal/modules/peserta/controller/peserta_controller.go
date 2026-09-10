@@ -161,3 +161,26 @@ func (c *PesertaController) RestorePeserta(ctx *fiber.Ctx) error {
 
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Restore peserta successfully", nil)
 }
+
+// DownloadKartuUjian godoc
+// @Summary Download kartu peserta ujian satu kelas (PDF, siap cetak & gunting)
+// @Description Menghasilkan PDF berisi kartu untuk setiap peserta di kelas tersebut, ditata grid 2x5 kartu per halaman A4 dengan garis putus-putus sebagai panduan gunting. Kartu ini bersifat global (tidak terikat jadwal/ujian tertentu) — hanya menampilkan nama, username, dan kelas, tanpa password.
+// @Tags Peserta
+// @Produce application/pdf
+// @Security BearerAuth
+// @Param id_kelas path string true "ID kelas (uuid)"
+// @Success 200 {file} file "File kartu_ujian_<kelas>.pdf"
+// @Failure 400 {object} helpers.Response "Kelas tidak ditemukan atau belum memiliki peserta"
+// @Router /peserta/kartu-ujian/{id_kelas} [get]
+func (c *PesertaController) DownloadKartuUjian(ctx *fiber.Ctx) error {
+	idKelas := ctx.Params("id_kelas")
+
+	fileBytes, err := c.service.GenerateKartuUjianPDF(idKelas)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	ctx.Set("Content-Type", "application/pdf")
+	ctx.Set("Content-Disposition", `attachment; filename="kartu_ujian.pdf"`)
+	return ctx.Send(fileBytes)
+}

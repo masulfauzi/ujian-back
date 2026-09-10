@@ -351,3 +351,22 @@ func (c *SoalController) ImportSoalFromExcel(ctx *fiber.Ctx) error {
 	// 7. Return success response
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Import soal berhasil", resp)
 }
+
+// DownloadTemplate godoc
+// @Summary Download template Excel untuk import soal
+// @Description Menghasilkan file .xlsx kosong (hanya header) dengan urutan kolom yang sama persis dengan yang dibaca endpoint import (POST /soal/import) — no_soal, soal, opsi_a-e, kunci, lalu gambar_soal & gambar_a-e (kolom I dan K sengaja dikosongkan, jangan dihapus/disisipi supaya kolom lain tidak bergeser).
+// @Tags Soal
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Success 200 {file} file "File template_import_soal.xlsx"
+// @Failure 500 {object} helpers.Response "Gagal membuat file template"
+// @Router /soal/template [get]
+func (c *SoalController) DownloadTemplate(ctx *fiber.Ctx) error {
+	fileBytes, err := c.service.GenerateImportTemplate()
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusInternalServerError, "Gagal membuat file template", nil)
+	}
+
+	ctx.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	ctx.Set("Content-Disposition", `attachment; filename="template_import_soal.xlsx"`)
+	return ctx.Send(fileBytes)
+}

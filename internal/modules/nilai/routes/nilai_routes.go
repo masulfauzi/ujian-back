@@ -26,6 +26,7 @@ func SetupNilaiRoutes(app *fiber.App, db *gorm.DB) {
 	nilai.Get("/peserta/:id_peserta", ctrl.GetNilaiByPeserta)
 	nilai.Get("/jadwal/:id_jadwal", ctrl.GetNilaiByJadwal)
 	nilai.Get("/export/:id_jadwal", middleware.JWTAuth(), ctrl.ExportNilai)
+	nilai.Get("/analisis/:id_jadwal", middleware.JWTAuth(), ctrl.AnalisisSoal)
 	nilai.Post("/mulai-ujian/:id_jadwal", middleware.JWTAuth(), ctrl.MulaiUjian)
 
 	nilai.Post("/", middleware.JWTAuth(), ctrl.CreateNilai)

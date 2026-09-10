@@ -3,6 +3,7 @@ module backend
 go 1.25
 
 require (
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/go-playground/validator/v10 v10.16.0
 	github.com/gofiber/fiber/v2 v2.52.6
 	github.com/gofiber/swagger v1.1.1

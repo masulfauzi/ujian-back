@@ -60,6 +60,7 @@ type NilaiService interface {
 	RestoreNilai(id string) error
 	MulaiUjian(idPeserta, idJadwal, token string) (*dto.NilaiResponse, bool, error)
 	ExportNilaiByJadwal(idJadwal string) (*ExportResult, error)
+	AnalisisSoalByJadwal(idJadwal string) (*ExportResult, error)
 	AdvanceSection(idNilai, idPeserta string) (*dto.SectionProgressResponse, error)
 	GetSectionStatus(idNilai, idPeserta string) (*dto.SectionProgressResponse, error)
 }
@@ -696,4 +697,264 @@ func (s *nilaiService) ExportNilaiByJadwal(idJadwal string) (*ExportResult, erro
 		ZipBytes:  zipBuf.Bytes(),
 		NamaUjian: namaUjian,
 	}, nil
+}
+
+// analisisJawabanRow adalah baris flat hasil LEFT JOIN peserta->nilai->jawaban->soal.
+// NoSoal/Jawaban/IsBenar bernilai nil jika peserta belum pernah mulai ujian ini sama sekali.
+type analisisJawabanRow struct {
+	IDPeserta   string  `gorm:"column:id_peserta"`
+	NamaPeserta string  `gorm:"column:nama_peserta"`
+	NoSoal      *int    `gorm:"column:no_soal"`
+	Jawaban     *string `gorm:"column:jawaban"`
+	IsBenar     *int    `gorm:"column:is_benar"`
+}
+
+// AnalisisSoalByJadwal membuat ZIP berisi satu .xlsx analisis per kelas: baris = peserta,
+// kolom = soal (diurutkan berdasarkan no_soal — bukan no_urut — supaya tetap sebanding
+// antar peserta walau acak_soal aktif dan urutan tampil tiap peserta berbeda-beda).
+// Cell diwarnai hijau (jawaban benar), merah (jawaban salah), atau kuning (belum dijawab).
+func (s *nilaiService) AnalisisSoalByJadwal(idJadwal string) (*ExportResult, error) {
+	// 1. Ambil nama_ujian & id_bank_soal dari jadwal
+	type jadwalMeta struct {
+		NamaUjian  string `gorm:"column:nama_ujian"`
+		IDBankSoal string `gorm:"column:id_bank_soal"`
+	}
+	var meta jadwalMeta
+	if err := s.db.Table("jadwal").
+		Select("nama_ujian, id_bank_soal").
+		Where("id = ? AND deleted_at IS NULL", idJadwal).
+		Scan(&meta).Error; err != nil || meta.NamaUjian == "" {
+		return nil, errors.New("jadwal tidak ditemukan")
+	}
+
+	// 2. Nama mapel (untuk nama file)
+	var namaMapel string
+	if err := s.db.Table("bank_soal").
+		Select("mapel.nama_mapel").
+		Joins("INNER JOIN mapel ON bank_soal.id_mapel = mapel.id").
+		Where("bank_soal.id = ? AND bank_soal.deleted_at IS NULL", meta.IDBankSoal).
+		Scan(&namaMapel).Error; err != nil || namaMapel == "" {
+		return nil, errors.New("mapel tidak ditemukan untuk jadwal ini")
+	}
+
+	// 3. Daftar no_soal — kolom tetap & urutannya sama untuk semua peserta
+	var noSoalList []int
+	if err := s.db.Table("soal").
+		Select("no_soal").
+		Where("id_bank_soal = ? AND deleted_at IS NULL", meta.IDBankSoal).
+		Order("no_soal ASC").
+		Scan(&noSoalList).Error; err != nil {
+		return nil, err
+	}
+	if len(noSoalList) == 0 {
+		return nil, errors.New("jadwal ini belum memiliki soal")
+	}
+
+	// 4. Daftar kelas yang terdaftar pada jadwal ini
+	type kelasRow struct {
+		IDKelas   string `gorm:"column:id_kelas"`
+		NamaKelas string `gorm:"column:nama_kelas"`
+	}
+	var kelasList []kelasRow
+	if err := s.db.Table("jadwal_kelas").
+		Select("jadwal_kelas.id_kelas, kelas.nama_kelas").
+		Joins("INNER JOIN kelas ON jadwal_kelas.id_kelas = kelas.id").
+		Where("jadwal_kelas.id_jadwal = ?", idJadwal).
+		Scan(&kelasList).Error; err != nil {
+		return nil, err
+	}
+	if len(kelasList) == 0 {
+		return nil, errors.New("tidak ada kelas yang terdaftar pada jadwal ini")
+	}
+
+	var zipBuf bytes.Buffer
+	zipWriter := zip.NewWriter(&zipBuf)
+
+	for _, kelas := range kelasList {
+		var rows []analisisJawabanRow
+		if err := s.db.Table("peserta").
+			Select(`
+				peserta.id AS id_peserta,
+				peserta.nama AS nama_peserta,
+				soal.no_soal,
+				jawaban.jawaban,
+				jawaban.is_benar
+			`).
+			Joins("LEFT JOIN nilai ON nilai.id_peserta = peserta.id AND nilai.id_jadwal = ? AND nilai.deleted_at IS NULL", idJadwal).
+			Joins("LEFT JOIN jawaban ON jawaban.id_nilai = nilai.id AND jawaban.deleted_at IS NULL").
+			Joins("LEFT JOIN soal ON soal.id = jawaban.id_soal AND soal.deleted_at IS NULL").
+			Where("peserta.id_kelas = ? AND peserta.deleted_at IS NULL", kelas.IDKelas).
+			Order("peserta.nama ASC, soal.no_soal ASC").
+			Scan(&rows).Error; err != nil {
+			return nil, fmt.Errorf("gagal ambil data jawaban kelas %s: %w", kelas.NamaKelas, err)
+		}
+
+		xlsxFile, err := buildAnalisisSoalWorkbook(rows, noSoalList)
+		if err != nil {
+			return nil, fmt.Errorf("gagal membuat sheet analisis kelas %s: %w", kelas.NamaKelas, err)
+		}
+
+		var xlsBuf bytes.Buffer
+		if err := xlsxFile.Write(&xlsBuf); err != nil {
+			return nil, err
+		}
+
+		safeMapel := strings.ReplaceAll(namaMapel, " ", "_")
+		safeKelas := strings.ReplaceAll(kelas.NamaKelas, " ", "_")
+		filename := fmt.Sprintf("Analisis_%s_%s.xlsx", safeMapel, safeKelas)
+
+		zipEntry, err := zipWriter.Create(filename)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := zipEntry.Write(xlsBuf.Bytes()); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		return nil, err
+	}
+
+	return &ExportResult{
+		ZipBytes:  zipBuf.Bytes(),
+		NamaUjian: meta.NamaUjian,
+	}, nil
+}
+
+type analisisAnswer struct {
+	Jawaban *string
+	IsBenar *int
+}
+
+type analisisPesertaAgg struct {
+	Nama    string
+	Started bool
+	Answers map[int]analisisAnswer
+}
+
+// buildAnalisisSoalWorkbook memivot baris flat (peserta x soal) menjadi satu sheet:
+// baris = peserta (urut sesuai kemunculan pertama di `rows`, yaitu nama ASC),
+// kolom = soal urut noSoalList, plus ringkasan Benar/Salah/Belum Dijawab per peserta
+// dan baris "Jumlah Benar per Soal" di paling bawah untuk analisis tingkat kesulitan soal.
+func buildAnalisisSoalWorkbook(rows []analisisJawabanRow, noSoalList []int) (*excelize.File, error) {
+	order := make([]string, 0)
+	agg := make(map[string]*analisisPesertaAgg)
+
+	for _, r := range rows {
+		a, ok := agg[r.IDPeserta]
+		if !ok {
+			a = &analisisPesertaAgg{Nama: r.NamaPeserta, Answers: make(map[int]analisisAnswer)}
+			agg[r.IDPeserta] = a
+			order = append(order, r.IDPeserta)
+		}
+		if r.NoSoal != nil {
+			a.Started = true
+			a.Answers[*r.NoSoal] = analisisAnswer{Jawaban: r.Jawaban, IsBenar: r.IsBenar}
+		}
+	}
+
+	f := excelize.NewFile()
+	sheet := "Analisis Soal"
+	f.SetSheetName("Sheet1", sheet)
+
+	greenStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"C6EFCE"}, Pattern: 1},
+		Font: &excelize.Font{Color: "006100"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	redStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFC7CE"}, Pattern: 1},
+		Font: &excelize.Font{Color: "9C0006"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	yellowStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFEB9C"}, Pattern: 1},
+		Font: &excelize.Font{Color: "9C6500"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	headerStyle, err := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
+	if err != nil {
+		return nil, err
+	}
+
+	// Header
+	headers := []string{"No", "Nama Peserta"}
+	for _, noSoal := range noSoalList {
+		headers = append(headers, fmt.Sprintf("Soal %d", noSoal))
+	}
+	headers = append(headers, "Benar", "Salah", "Belum Dijawab")
+	for col, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+		f.SetCellValue(sheet, cell, h)
+		f.SetCellStyle(sheet, cell, cell, headerStyle)
+	}
+
+	summaryColStart := len(noSoalList) + 3 // kolom setelah "No", "Nama Peserta", dan semua soal
+	benarPerSoal := make([]int, len(noSoalList))
+
+	for i, idPeserta := range order {
+		a := agg[idPeserta]
+		rowNum := i + 2
+
+		noCell, _ := excelize.CoordinatesToCellName(1, rowNum)
+		namaCell, _ := excelize.CoordinatesToCellName(2, rowNum)
+		f.SetCellValue(sheet, noCell, i+1)
+		f.SetCellValue(sheet, namaCell, a.Nama)
+
+		var benar, salah, belum int
+		for j, noSoal := range noSoalList {
+			cellName, _ := excelize.CoordinatesToCellName(j+3, rowNum)
+
+			if !a.Started {
+				continue // peserta belum pernah mulai ujian ini — cell dibiarkan kosong tanpa warna
+			}
+
+			ans, answered := a.Answers[noSoal]
+			if !answered || ans.Jawaban == nil {
+				f.SetCellStyle(sheet, cellName, cellName, yellowStyle)
+				belum++
+				continue
+			}
+
+			f.SetCellValue(sheet, cellName, strings.ToUpper(*ans.Jawaban))
+			if ans.IsBenar != nil && *ans.IsBenar == 1 {
+				f.SetCellStyle(sheet, cellName, cellName, greenStyle)
+				benar++
+				benarPerSoal[j]++
+			} else {
+				f.SetCellStyle(sheet, cellName, cellName, redStyle)
+				salah++
+			}
+		}
+
+		benarCell, _ := excelize.CoordinatesToCellName(summaryColStart, rowNum)
+		salahCell, _ := excelize.CoordinatesToCellName(summaryColStart+1, rowNum)
+		belumCell, _ := excelize.CoordinatesToCellName(summaryColStart+2, rowNum)
+		f.SetCellValue(sheet, benarCell, benar)
+		f.SetCellValue(sheet, salahCell, salah)
+		f.SetCellValue(sheet, belumCell, belum)
+	}
+
+	// Baris total: jumlah peserta yang menjawab benar per soal — untuk lihat soal mana yang paling banyak dijawab salah
+	totalRow := len(order) + 2
+	totalLabelCell, _ := excelize.CoordinatesToCellName(2, totalRow)
+	f.SetCellValue(sheet, totalLabelCell, "Jumlah Benar per Soal")
+	f.SetCellStyle(sheet, totalLabelCell, totalLabelCell, headerStyle)
+	for j := range noSoalList {
+		cellName, _ := excelize.CoordinatesToCellName(j+3, totalRow)
+		f.SetCellValue(sheet, cellName, benarPerSoal[j])
+		f.SetCellStyle(sheet, cellName, cellName, headerStyle)
+	}
+
+	f.SetColWidth(sheet, "A", "A", 5)
+	f.SetColWidth(sheet, "B", "B", 28)
+
+	return f, nil
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"errors"
 	"math"
 
@@ -10,6 +11,7 @@ import (
 	"backend/internal/modules/peserta/repository"
 	"backend/internal/utils"
 
+	"github.com/go-pdf/fpdf"
 	"gorm.io/gorm"
 )
 
@@ -32,6 +34,7 @@ type PesertaService interface {
 	UpdatePeserta(id string, req *dto.UpdatePesertaRequest) (*dto.PesertaResponse, error)
 	DeletePeserta(id string) error
 	RestorePeserta(id string) error
+	GenerateKartuUjianPDF(idKelas string) ([]byte, error)
 }
 
 type pesertaService struct {
@@ -169,4 +172,80 @@ func (s *pesertaService) DeletePeserta(id string) error {
 
 func (s *pesertaService) RestorePeserta(id string) error {
 	return s.repo.Restore(id)
+}
+
+// GenerateKartuUjianPDF membuat PDF kartu peserta ujian untuk satu kelas, ditata sebagai
+// grid kartu (2 kolom x 5 baris per halaman A4) dengan garis putus-putus di tiap kartu
+// sebagai panduan gunting. Kartu bersifat global (tidak terikat jadwal/ujian tertentu) dan
+// tidak menampilkan password — hanya nama, username, dan kelas.
+func (s *pesertaService) GenerateKartuUjianPDF(idKelas string) ([]byte, error) {
+	pesertaList, total, err := s.repo.GetAll(1, 99999, idKelas)
+	if err != nil {
+		return nil, err
+	}
+	if total == 0 {
+		return nil, errors.New("kelas tidak ditemukan atau belum memiliki peserta")
+	}
+
+	return buildKartuUjianPDF(pesertaList)
+}
+
+func buildKartuUjianPDF(pesertaList []repository.PesertaWithKelas) ([]byte, error) {
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(10, 10, 10)
+
+	const (
+		cols, rows       = 2, 5
+		cardW, cardH     = 90.0, 50.0
+		marginX, marginY = 10.0, 10.0
+		gapX, gapY       = 10.0, 5.0
+	)
+	perPage := cols * rows
+
+	for i, p := range pesertaList {
+		if i%perPage == 0 {
+			pdf.AddPage()
+		}
+		idx := i % perPage
+		col := idx % cols
+		row := idx / cols
+		x := marginX + float64(col)*(cardW+gapX)
+		y := marginY + float64(row)*(cardH+gapY)
+
+		pdf.SetDrawColor(120, 120, 120)
+		pdf.SetDashPattern([]float64{2, 2}, 0)
+		pdf.Rect(x, y, cardW, cardH, "D")
+		pdf.SetDashPattern([]float64{}, 0)
+
+		pdf.SetXY(x, y+5)
+		pdf.SetFont("Helvetica", "B", 11)
+		pdf.CellFormat(cardW, 5, "KARTU PESERTA UJIAN", "", 0, "C", false, 0, "")
+
+		pdf.SetDrawColor(0, 0, 0)
+		pdf.Line(x+6, y+12, x+cardW-6, y+12)
+
+		lineY := y + 20
+		writeField := func(label, value string) {
+			pdf.SetXY(x+6, lineY)
+			pdf.SetFont("Helvetica", "", 10)
+			pdf.CellFormat(24, 6, label, "", 0, "L", false, 0, "")
+			pdf.CellFormat(4, 6, ":", "", 0, "L", false, 0, "")
+			pdf.SetFont("Helvetica", "B", 10)
+			pdf.CellFormat(cardW-6-24-4-6, 6, value, "", 0, "L", false, 0, "")
+			lineY += 7
+		}
+		writeField("Nama", p.Nama)
+		writeField("Username", p.Username)
+		writeField("Kelas", p.NamaKelas)
+	}
+
+	if !pdf.Ok() {
+		return nil, pdf.Error()
+	}
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

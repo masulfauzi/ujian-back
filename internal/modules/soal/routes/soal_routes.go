@@ -26,6 +26,7 @@ func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Protected endpoints (write operations)
 	soal.Post("/", middleware.JWTAuth(), ctrl.CreateSoal)
+	soal.Get("/template", middleware.JWTAuth(), ctrl.DownloadTemplate)
 	soal.Post("/import", middleware.JWTAuth(), ctrl.ImportSoalFromExcel)
 	soal.Put("/:id", middleware.JWTAuth(), ctrl.UpdateSoal)
 	soal.Delete("/:id", middleware.JWTAuth(), ctrl.DeleteSoal)
