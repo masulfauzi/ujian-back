@@ -21,6 +21,17 @@ func NewNilaiController(service service.NilaiService) *NilaiController {
 	return &NilaiController{service: service}
 }
 
+// CreateNilai godoc
+// @Summary Buat data nilai secara manual
+// @Description Biasanya sesi pengerjaan (nilai) dibuat otomatis lewat endpoint mulai-ujian. Endpoint ini untuk kasus input manual oleh admin.
+// @Tags Nilai
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateNilaiRequest true "Data nilai"
+// @Success 201 {object} helpers.Response{data=dto.NilaiResponse} "Create nilai successfully"
+// @Failure 400 {object} helpers.Response "Validasi gagal atau data sudah ada"
+// @Router /nilai [post]
 func (c *NilaiController) CreateNilai(ctx *fiber.Ctx) error {
 	var req dto.CreateNilaiRequest
 
@@ -36,11 +47,22 @@ func (c *NilaiController) CreateNilai(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusCreated, "Create nilai successfully", resp)
 }
 
+// GetAllNilai godoc
+// @Summary List semua data nilai/sesi ujian
+// @Tags Nilai
+// @Produce json
+// @Param page query int false "Halaman" default(1)
+// @Param page_size query int false "Jumlah per halaman" default(10)
+// @Param id_peserta query string false "Filter berdasarkan ID peserta (uuid)"
+// @Param id_jadwal query string false "Filter berdasarkan ID jadwal (uuid)"
+// @Success 200 {object} helpers.Response{data=dto.NilaiListResponse} "Get all nilai successfully"
+// @Failure 500 {object} helpers.Response "Gagal mengambil data"
+// @Router /nilai [get]
 func (c *NilaiController) GetAllNilai(ctx *fiber.Ctx) error {
-	page      := ctx.Query("page", "1")
-	pageSize  := ctx.Query("page_size", "10")
+	page := ctx.Query("page", "1")
+	pageSize := ctx.Query("page_size", "10")
 	idPeserta := ctx.Query("id_peserta", "")
-	idJadwal  := ctx.Query("id_jadwal", "")
+	idJadwal := ctx.Query("id_jadwal", "")
 
 	pageNum, err := strconv.Atoi(page)
 	if err != nil || pageNum <= 0 {
@@ -60,6 +82,15 @@ func (c *NilaiController) GetAllNilai(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get all nilai successfully", resp)
 }
 
+// GetNilaiByID godoc
+// @Summary Detail satu sesi nilai/ujian
+// @Description Response menyertakan id_section_aktif & wkt_mulai_section jika jadwal ini memakai fitur section.
+// @Tags Nilai
+// @Produce json
+// @Param id path string true "ID nilai (uuid)"
+// @Success 200 {object} helpers.Response{data=dto.NilaiResponse} "Get nilai successfully"
+// @Failure 404 {object} helpers.Response "Nilai tidak ditemukan"
+// @Router /nilai/{id} [get]
 func (c *NilaiController) GetNilaiByID(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
@@ -71,10 +102,20 @@ func (c *NilaiController) GetNilaiByID(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get nilai successfully", resp)
 }
 
+// GetNilaiByPeserta godoc
+// @Summary List riwayat nilai satu peserta
+// @Tags Nilai
+// @Produce json
+// @Param id_peserta path string true "ID peserta (uuid)"
+// @Param page query int false "Halaman" default(1)
+// @Param page_size query int false "Jumlah per halaman" default(10)
+// @Success 200 {object} helpers.Response{data=dto.NilaiListResponse} "Get nilai by peserta successfully"
+// @Failure 500 {object} helpers.Response "Gagal mengambil data"
+// @Router /nilai/peserta/{id_peserta} [get]
 func (c *NilaiController) GetNilaiByPeserta(ctx *fiber.Ctx) error {
 	idPeserta := ctx.Params("id_peserta")
-	page      := ctx.Query("page", "1")
-	pageSize  := ctx.Query("page_size", "10")
+	page := ctx.Query("page", "1")
+	pageSize := ctx.Query("page_size", "10")
 
 	pageNum, err := strconv.Atoi(page)
 	if err != nil || pageNum <= 0 {
@@ -94,9 +135,19 @@ func (c *NilaiController) GetNilaiByPeserta(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get nilai by peserta successfully", resp)
 }
 
+// GetNilaiByJadwal godoc
+// @Summary List nilai semua peserta untuk satu jadwal
+// @Tags Nilai
+// @Produce json
+// @Param id_jadwal path string true "ID jadwal (uuid)"
+// @Param page query int false "Halaman" default(1)
+// @Param page_size query int false "Jumlah per halaman" default(10)
+// @Success 200 {object} helpers.Response{data=dto.NilaiListResponse} "Get nilai by jadwal successfully"
+// @Failure 500 {object} helpers.Response "Gagal mengambil data"
+// @Router /nilai/jadwal/{id_jadwal} [get]
 func (c *NilaiController) GetNilaiByJadwal(ctx *fiber.Ctx) error {
 	idJadwal := ctx.Params("id_jadwal")
-	page     := ctx.Query("page", "1")
+	page := ctx.Query("page", "1")
 	pageSize := ctx.Query("page_size", "10")
 
 	pageNum, err := strconv.Atoi(page)
@@ -117,6 +168,18 @@ func (c *NilaiController) GetNilaiByJadwal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get nilai by jadwal successfully", resp)
 }
 
+// UpdateNilai godoc
+// @Summary Update data nilai / selesaikan ujian
+// @Description Mengisi wkt_selesai akan otomatis memicu penghitungan ulang nilai akhir berdasarkan jawaban yang sudah masuk.
+// @Tags Nilai
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID nilai (uuid)"
+// @Param request body dto.UpdateNilaiRequest true "Field yang diubah"
+// @Success 200 {object} helpers.Response{data=dto.NilaiResponse} "Update nilai successfully"
+// @Failure 400 {object} helpers.Response "Validasi gagal"
+// @Router /nilai/{id} [put]
 func (c *NilaiController) UpdateNilai(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 	var req dto.UpdateNilaiRequest
@@ -133,6 +196,15 @@ func (c *NilaiController) UpdateNilai(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Update nilai successfully", resp)
 }
 
+// DeleteNilai godoc
+// @Summary Hapus data nilai (soft delete)
+// @Tags Nilai
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID nilai (uuid)"
+// @Success 200 {object} helpers.Response "Delete nilai successfully"
+// @Failure 400 {object} helpers.Response "Gagal menghapus"
+// @Router /nilai/{id} [delete]
 func (c *NilaiController) DeleteNilai(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
@@ -144,6 +216,15 @@ func (c *NilaiController) DeleteNilai(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Delete nilai successfully", nil)
 }
 
+// RestoreNilai godoc
+// @Summary Restore data nilai yang sudah dihapus
+// @Tags Nilai
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID nilai (uuid)"
+// @Success 200 {object} helpers.Response "Restore nilai successfully"
+// @Failure 400 {object} helpers.Response "Gagal restore"
+// @Router /nilai/{id}/restore [patch]
 func (c *NilaiController) RestoreNilai(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
@@ -155,24 +236,27 @@ func (c *NilaiController) RestoreNilai(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Restore nilai successfully", nil)
 }
 
+// MulaiUjian godoc
+// @Summary Mulai (atau lanjutkan) pengerjaan ujian
+// @Description Dipanggil peserta saat membuka jadwal ujian. Jika belum pernah mulai, sesi nilai baru dibuat beserta seluruh baris jawaban kosong (soal diacak jika acak_soal aktif) dan status 201 dikembalikan. Jika sesi sudah ada dan belum wkt_selesai, dianggap resume dan status 200 dikembalikan. Jika sudah wkt_selesai, request ditolak.
+// @Tags Nilai
+// @Produce json
+// @Security BearerAuth
+// @Param id_jadwal path string true "ID jadwal (uuid)"
+// @Success 201 {object} helpers.Response{data=dto.NilaiResponse} "Mulai ujian successfully (sesi baru)"
+// @Success 200 {object} helpers.Response{data=dto.NilaiResponse} "Lanjutkan ujian successfully (resume sesi yang sudah ada)"
+// @Failure 400 {object} helpers.Response "Jadwal tidak ditemukan atau ujian sudah pernah selesai dikerjakan"
+// @Failure 401 {object} helpers.Response "Token tidak valid"
+// @Router /nilai/mulai-ujian/{id_jadwal} [post]
 func (c *NilaiController) MulaiUjian(ctx *fiber.Ctx) error {
 	idJadwal := ctx.Params("id_jadwal")
 	if idJadwal == "" {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "id_jadwal tidak boleh kosong", nil)
 	}
 
-	// Ambil user_id (= id_peserta) dari JWT
-	userToken, ok := ctx.Locals("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, "Unauthorized", nil)
-	}
-	claims, ok := userToken.Claims.(jwt.MapClaims)
-	if !ok {
-		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, "Invalid token claims", nil)
-	}
-	idPeserta, ok := claims["user_id"].(string)
-	if !ok || idPeserta == "" {
-		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, "user_id tidak ditemukan di token", nil)
+	idPeserta, err := getPesertaIDFromToken(ctx)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, err.Error(), nil)
 	}
 
 	resp, isNew, err := c.service.MulaiUjian(idPeserta, idJadwal)
@@ -186,6 +270,87 @@ func (c *NilaiController) MulaiUjian(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Lanjutkan ujian successfully", resp)
 }
 
+// getPesertaIDFromToken mengambil user_id (= id_peserta) dari JWT yang sudah divalidasi middleware.JWTAuth.
+func getPesertaIDFromToken(ctx *fiber.Ctx) (string, error) {
+	userToken, ok := ctx.Locals("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return "", fmt.Errorf("Unauthorized")
+	}
+	claims, ok := userToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("Invalid token claims")
+	}
+	idPeserta, ok := claims["user_id"].(string)
+	if !ok || idPeserta == "" {
+		return "", fmt.Errorf("user_id tidak ditemukan di token")
+	}
+	return idPeserta, nil
+}
+
+// NextSection godoc
+// @Summary Maju ke section berikutnya
+// @Description Memindahkan frontier section peserta ke section berikutnya, hanya jika waktu minimal (durasi_menit_minimal) pada section saat ini sudah terlampaui. Jika belum, response tetap 200 namun boleh_lanjut=false beserta sisa_detik yang harus ditunggu — frontend bisa poll endpoint ini atau /section-status untuk menampilkan countdown. Section yang sudah pernah dibuka tetap bisa diakses bebas (navigasi mundur), endpoint ini hanya menggerakkan batas terjauh (frontier).
+// @Tags Nilai
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID nilai (uuid), yaitu ID sesi pengerjaan ujian milik peserta yang login"
+// @Success 200 {object} helpers.Response{data=dto.SectionProgressResponse} "Berhasil maju ke section berikutnya, atau ditolak sementara (lihat boleh_lanjut & sisa_detik)"
+// @Failure 400 {object} helpers.Response "Ujian tidak memakai section, sudah selesai, atau sudah di section terakhir"
+// @Failure 401 {object} helpers.Response "Token tidak valid atau bukan pemilik sesi ini"
+// @Router /nilai/{id}/next-section [post]
+func (c *NilaiController) NextSection(ctx *fiber.Ctx) error {
+	idNilai := ctx.Params("id")
+
+	idPeserta, err := getPesertaIDFromToken(ctx)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, err.Error(), nil)
+	}
+
+	resp, err := c.service.AdvanceSection(idNilai, idPeserta)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Next section successfully", resp)
+}
+
+// SectionStatus godoc
+// @Summary Cek status section aktif (read-only, untuk polling countdown)
+// @Description Sama seperti next-section tapi tidak mengubah apapun — cocok dipanggil berkala oleh frontend untuk menampilkan sisa waktu sebelum tombol "lanjut ke section berikutnya" aktif.
+// @Tags Nilai
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID nilai (uuid)"
+// @Success 200 {object} helpers.Response{data=dto.SectionProgressResponse} "Get section status successfully"
+// @Failure 400 {object} helpers.Response "Ujian tidak memakai section"
+// @Failure 401 {object} helpers.Response "Token tidak valid atau bukan pemilik sesi ini"
+// @Router /nilai/{id}/section-status [get]
+func (c *NilaiController) SectionStatus(ctx *fiber.Ctx) error {
+	idNilai := ctx.Params("id")
+
+	idPeserta, err := getPesertaIDFromToken(ctx)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, err.Error(), nil)
+	}
+
+	resp, err := c.service.GetSectionStatus(idNilai, idPeserta)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get section status successfully", resp)
+}
+
+// ExportNilai godoc
+// @Summary Export nilai satu jadwal ke Excel (per kelas, dalam ZIP)
+// @Description Menghasilkan file ZIP berisi satu file .xlsx per kelas yang terdaftar pada jadwal tersebut.
+// @Tags Nilai
+// @Produce application/zip
+// @Security BearerAuth
+// @Param id_jadwal path string true "ID jadwal (uuid)"
+// @Success 200 {file} file "File ZIP berisi export nilai per kelas"
+// @Failure 400 {object} helpers.Response "Jadwal tidak ditemukan atau tidak ada kelas terdaftar"
+// @Router /nilai/export/{id_jadwal} [get]
 func (c *NilaiController) ExportNilai(ctx *fiber.Ctx) error {
 	idJadwal := ctx.Params("id_jadwal")
 	if idJadwal == "" {

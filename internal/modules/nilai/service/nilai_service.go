@@ -17,6 +17,8 @@ import (
 	"backend/internal/modules/nilai/dto"
 	"backend/internal/modules/nilai/model"
 	"backend/internal/modules/nilai/repository"
+	sectionmodel "backend/internal/modules/section/model"
+	sectionrepo "backend/internal/modules/section/repository"
 	soalmodel "backend/internal/modules/soal/model"
 
 	"github.com/xuri/excelize/v2"
@@ -29,6 +31,15 @@ func init() {
 	if jakartaLoc == nil {
 		jakartaLoc = time.FixedZone("WIB", 7*60*60)
 	}
+}
+
+// wibWallClock mengoreksi time.Time yang dibaca dari kolom "timestamp" (tanpa timezone) di
+// Postgres: driver membaca digit jam-nya lalu menandainya sebagai UTC, padahal digit itu
+// sebenarnya wall-clock WIB (ditulis via time.Now().In(jakartaLoc), lihat MulaiUjian/AdvanceSection).
+// Fungsi ini menafsirkan ulang digit yang sama sebagai WIB agar instant absolutnya benar
+// sebelum dibandingkan dengan time.Now().
+func wibWallClock(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), jakartaLoc)
 }
 
 type ExportResult struct {
@@ -47,18 +58,22 @@ type NilaiService interface {
 	RestoreNilai(id string) error
 	MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiResponse, bool, error)
 	ExportNilaiByJadwal(idJadwal string) (*ExportResult, error)
+	AdvanceSection(idNilai, idPeserta string) (*dto.SectionProgressResponse, error)
+	GetSectionStatus(idNilai, idPeserta string) (*dto.SectionProgressResponse, error)
 }
 
 type nilaiService struct {
 	repo        repository.NilaiRepository
 	jawabanRepo jawabanrepo.JawabanRepository
+	sectionRepo sectionrepo.SectionRepository
 	db          *gorm.DB
 }
 
-func NewNilaiService(repo repository.NilaiRepository, jawabanRepo jawabanrepo.JawabanRepository, db *gorm.DB) NilaiService {
+func NewNilaiService(repo repository.NilaiRepository, jawabanRepo jawabanrepo.JawabanRepository, sectionRepo sectionrepo.SectionRepository, db *gorm.DB) NilaiService {
 	return &nilaiService{
 		repo:        repo,
 		jawabanRepo: jawabanRepo,
+		sectionRepo: sectionRepo,
 		db:          db,
 	}
 }
@@ -329,6 +344,26 @@ func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiRespons
 		}
 		newNilaiID = nilai.ID
 
+		// 3c-bis. Jika jadwal ini memakai section, aktifkan section pertama sebagai frontier awal.
+		var sections []sectionmodel.Section
+		if err := tx.Where("id_jadwal = ? AND deleted_at IS NULL", idJadwal).
+			Order("urutan ASC").
+			Find(&sections).Error; err != nil {
+			return err
+		}
+		if len(sections) > 0 {
+			firstSectionID := sections[0].ID
+			nilai.IDSectionAktif = &firstSectionID
+			nilai.WktMulaiSection = &now
+			if err := tx.Model(&model.Nilai{}).Where("id = ?", nilai.ID).
+				Updates(map[string]interface{}{
+					"id_section_aktif":  firstSectionID,
+					"wkt_mulai_section": now,
+				}).Error; err != nil {
+				return err
+			}
+		}
+
 		// 3c. Query soal by bank_soal — acak jika acak_soal=1, urut jika 0
 		var soals []soalmodel.Soal
 		soalQuery := tx.Where("id_bank_soal = ? AND deleted_at IS NULL", jadwal.IDBankSoal)
@@ -388,6 +423,130 @@ func (s *nilaiService) MulaiUjian(idPeserta, idJadwal string) (*dto.NilaiRespons
 	return detailToResponse(created), true, nil
 }
 
+func (s *nilaiService) loadNilaiForOwner(idNilai, idPeserta string) (*model.Nilai, error) {
+	nilai, err := s.repo.GetByID(idNilai)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New(constants.ErrNotFound)
+		}
+		return nil, err
+	}
+	if nilai.IDPeserta != idPeserta {
+		return nil, errors.New("Anda tidak memiliki akses ke sesi ujian ini")
+	}
+	return nilai, nil
+}
+
+// buildSectionProgress menghitung status section aktif (frontier) sesi ujian ini,
+// tanpa mengubah state apa pun.
+func (s *nilaiService) buildSectionProgress(nilai *model.Nilai) (*dto.SectionProgressResponse, *sectionmodel.Section, error) {
+	if nilai.IDSectionAktif == nil {
+		return nil, nil, errors.New("ujian ini tidak menggunakan section")
+	}
+
+	current, err := s.sectionRepo.GetByID(*nilai.IDSectionAktif)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	elapsedDetik := 0
+	if nilai.WktMulaiSection != nil {
+		elapsedDetik = int(time.Now().Sub(wibWallClock(*nilai.WktMulaiSection)).Seconds())
+	}
+	minDetik := current.DurasiMenitMinimal * 60
+	sisaDetik := minDetik - elapsedDetik
+	if sisaDetik < 0 {
+		sisaDetik = 0
+	}
+
+	sections, err := s.sectionRepo.GetByJadwalID(nilai.IDJadwal)
+	if err != nil {
+		return nil, nil, err
+	}
+	isTerakhir := true
+	for _, sec := range sections {
+		if sec.Urutan == current.Urutan+1 {
+			isTerakhir = false
+			break
+		}
+	}
+
+	return &dto.SectionProgressResponse{
+		IDNilai:            nilai.ID,
+		IDSection:          current.ID,
+		NamaSection:        current.NamaSection,
+		Urutan:             current.Urutan,
+		DurasiMenitMinimal: current.DurasiMenitMinimal,
+		BolehLanjut:        elapsedDetik >= minDetik,
+		SisaDetik:          sisaDetik,
+		IsSectionTerakhir:  isTerakhir,
+	}, current, nil
+}
+
+func (s *nilaiService) GetSectionStatus(idNilai, idPeserta string) (*dto.SectionProgressResponse, error) {
+	nilai, err := s.loadNilaiForOwner(idNilai, idPeserta)
+	if err != nil {
+		return nil, err
+	}
+	resp, _, err := s.buildSectionProgress(nilai)
+	return resp, err
+}
+
+func (s *nilaiService) AdvanceSection(idNilai, idPeserta string) (*dto.SectionProgressResponse, error) {
+	nilai, err := s.loadNilaiForOwner(idNilai, idPeserta)
+	if err != nil {
+		return nil, err
+	}
+	if nilai.WktSelesai != nil {
+		return nil, errors.New("ujian sudah selesai")
+	}
+
+	progress, current, err := s.buildSectionProgress(nilai)
+	if err != nil {
+		return nil, err
+	}
+	if progress.IsSectionTerakhir {
+		return nil, errors.New("sudah berada di section terakhir")
+	}
+	if !progress.BolehLanjut {
+		return progress, nil
+	}
+
+	sections, err := s.sectionRepo.GetByJadwalID(nilai.IDJadwal)
+	if err != nil {
+		return nil, err
+	}
+	var next *sectionmodel.Section
+	for i := range sections {
+		if sections[i].Urutan == current.Urutan+1 {
+			next = &sections[i]
+			break
+		}
+	}
+	if next == nil {
+		return nil, errors.New("sudah berada di section terakhir")
+	}
+
+	now := time.Now().In(jakartaLoc)
+	nilai.IDSectionAktif = &next.ID
+	nilai.WktMulaiSection = &now
+	if err := s.repo.Update(nilai); err != nil {
+		return nil, err
+	}
+
+	return &dto.SectionProgressResponse{
+		IDNilai:            nilai.ID,
+		IDSection:          next.ID,
+		NamaSection:        next.NamaSection,
+		Urutan:             next.Urutan,
+		DurasiMenitMinimal: next.DurasiMenitMinimal,
+		SudahLanjut:        true,
+		BolehLanjut:        true,
+		SisaDetik:          0,
+		IsSectionTerakhir:  false,
+	}, nil
+}
+
 func detailToResponse(r *repository.NilaiWithDetail) *dto.NilaiResponse {
 	return &dto.NilaiResponse{
 		ID:                r.ID,
@@ -399,6 +558,8 @@ func detailToResponse(r *repository.NilaiWithDetail) *dto.NilaiResponse {
 		WktMulai:          r.WktMulai,
 		AktivitasTerakhir: r.AktivitasTerakhir,
 		WktSelesai:        r.WktSelesai,
+		IDSectionAktif:    r.IDSectionAktif,
+		WktMulaiSection:   r.WktMulaiSection,
 		CreatedAt:         r.CreatedAt,
 		UpdatedAt:         r.UpdatedAt,
 	}

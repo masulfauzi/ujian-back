@@ -6,6 +6,7 @@ import (
 	"backend/internal/modules/nilai/controller"
 	"backend/internal/modules/nilai/repository"
 	"backend/internal/modules/nilai/service"
+	sectionrepo "backend/internal/modules/section/repository"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -14,7 +15,8 @@ import (
 func SetupNilaiRoutes(app *fiber.App, db *gorm.DB) {
 	repo              := repository.NewNilaiRepository(db)
 	jawabanRepository := jawabanrepo.NewJawabanRepository(db)
-	svc               := service.NewNilaiService(repo, jawabanRepository, db)
+	sectionRepository := sectionrepo.NewSectionRepository(db)
+	svc               := service.NewNilaiService(repo, jawabanRepository, sectionRepository, db)
 	ctrl              := controller.NewNilaiController(svc)
 
 	api   := app.Group("/api")
@@ -29,6 +31,8 @@ func SetupNilaiRoutes(app *fiber.App, db *gorm.DB) {
 	nilai.Post("/", middleware.JWTAuth(), ctrl.CreateNilai)
 	nilai.Get("/", ctrl.GetAllNilai)
 	nilai.Get("/:id", ctrl.GetNilaiByID)
+	nilai.Get("/:id/section-status", middleware.JWTAuth(), ctrl.SectionStatus)
+	nilai.Post("/:id/next-section", middleware.JWTAuth(), ctrl.NextSection)
 	nilai.Put("/:id", middleware.JWTAuth(), ctrl.UpdateNilai)
 	nilai.Delete("/:id", middleware.JWTAuth(), ctrl.DeleteNilai)
 	nilai.Patch("/:id/restore", middleware.JWTAuth(), ctrl.RestoreNilai)

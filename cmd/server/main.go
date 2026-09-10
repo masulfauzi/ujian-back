@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"backend/configs"
+	_ "backend/docs/swagger"
 	"backend/internal/database"
 	"backend/internal/middleware"
 	"backend/internal/storage"
@@ -21,11 +22,24 @@ import (
 	kelasroutes "backend/internal/modules/kelas/routes"
 	mapelroutes "backend/internal/modules/mapel/routes"
 	pesertaroutes "backend/internal/modules/peserta/routes"
+	sectionroutes "backend/internal/modules/section/routes"
 	soalroutes "backend/internal/modules/soal/routes"
 	userroutes "backend/internal/modules/user/routes"
 
 	"github.com/gofiber/fiber/v2"
+	fiberswagger "github.com/gofiber/swagger"
 )
+
+// @title Ujian Backend API
+// @version 1.0
+// @description API untuk sistem ujian online (bank soal, jadwal, pengerjaan ujian per section, penilaian).
+// @contact.name Tim Backend Ujian
+// @host localhost:3000
+// @BasePath /api
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Masukkan token JWT dengan format: Bearer {token}
 
 func main() {
 	if err := configs.LoadEnv(); err != nil {
@@ -84,6 +98,7 @@ func setupRoutes(app *fiber.App, appConfig *configs.AppConfig) {
 	})
 
 	app.Static("/uploads", "./uploads")
+	app.Get("/swagger/*", fiberswagger.New())
 
 	authroutes.SetupAuthRoutes(app, database.DB)
 	userroutes.SetupUserRoutes(app, database.DB)
@@ -97,4 +112,5 @@ func setupRoutes(app *fiber.App, appConfig *configs.AppConfig) {
 	pesertaroutes.SetupPesertaRoutes(app, database.DB)
 	nilairoutes.SetupNilaiRoutes(app, database.DB)
 	jawabanroutes.SetupJawabanRoutes(app, database.DB)
+	sectionroutes.SetupSectionRoutes(app, database.DB)
 }

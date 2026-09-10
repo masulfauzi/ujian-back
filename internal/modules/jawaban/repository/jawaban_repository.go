@@ -40,6 +40,7 @@ type JawabanRepository interface {
 	GetByIDWithDetail(id string) (*JawabanWithDetail, error)
 	GetAllWithDetail(page, pageSize int, idNilai, idPeserta, idSoal string) ([]JawabanWithDetail, int64, error)
 	GetByNilaiID(idNilai string, page, pageSize int) ([]JawabanWithDetail, int64, error)
+	GetByNilaiIDInRange(idNilai string, noUrutAwal, noUrutAkhir int) ([]JawabanWithDetail, error)
 	GetByPesertaID(idPeserta string, page, pageSize int) ([]JawabanWithDetail, int64, error)
 	GetSoalKunci(idSoal string) (string, error)
 	CheckDuplicate(idNilai, idSoal string) (bool, error)
@@ -196,6 +197,46 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 
 func (r *jawabanRepository) GetByNilaiID(idNilai string, page, pageSize int) ([]JawabanWithDetail, int64, error) {
 	return r.GetAllWithDetail(page, pageSize, idNilai, "", "")
+}
+
+// GetByNilaiIDInRange mengambil jawaban satu sesi yang no_urut-nya berada dalam range section tertentu.
+func (r *jawabanRepository) GetByNilaiIDInRange(idNilai string, noUrutAwal, noUrutAkhir int) ([]JawabanWithDetail, error) {
+	var results []JawabanWithDetail
+	err := r.db.Table("jawaban").
+		Select(`
+			jawaban.id,
+			jawaban.id_nilai,
+			jawaban.id_soal,
+			jawaban.no_urut,
+			soal.no_soal,
+			soal.soal AS soal_text,
+			soal.kunci,
+			soal.opsi_a,
+			soal.opsi_b,
+			soal.opsi_c,
+			soal.opsi_d,
+			soal.opsi_e,
+			soal.gambar_a,
+			soal.gambar_b,
+			soal.gambar_c,
+			soal.gambar_d,
+			soal.gambar_e,
+			jawaban.id_peserta,
+			peserta.nama AS nama_peserta,
+			jawaban.jawaban,
+			jawaban.is_benar,
+			jadwal.acak_opsi::int AS acak_opsi,
+			jawaban.created_at,
+			jawaban.updated_at
+		`).
+		Joins("INNER JOIN soal ON jawaban.id_soal = soal.id").
+		Joins("INNER JOIN peserta ON jawaban.id_peserta = peserta.id").
+		Joins("INNER JOIN nilai ON jawaban.id_nilai = nilai.id").
+		Joins("INNER JOIN jadwal ON nilai.id_jadwal = jadwal.id").
+		Where("jawaban.id_nilai = ? AND jawaban.deleted_at IS NULL AND jawaban.no_urut BETWEEN ? AND ?", idNilai, noUrutAwal, noUrutAkhir).
+		Order("jawaban.no_urut ASC").
+		Scan(&results).Error
+	return results, err
 }
 
 func (r *jawabanRepository) GetByPesertaID(idPeserta string, page, pageSize int) ([]JawabanWithDetail, int64, error) {

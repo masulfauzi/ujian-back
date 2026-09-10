@@ -26,6 +26,16 @@ func NewAuthController(authService authservice.AuthService, userService userserv
 	}
 }
 
+// Register godoc
+// @Summary Register user baru
+// @Description Mendaftarkan akun user (admin/guru) baru. Untuk akun peserta/siswa, gunakan proses import peserta, bukan endpoint ini.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RegisterRequest true "Data registrasi"
+// @Success 201 {object} helpers.Response{data=dto.AuthResponse} "Register successfully"
+// @Failure 400 {object} helpers.Response "Validasi gagal atau email/username sudah terdaftar"
+// @Router /auth/register [post]
 func (c *AuthController) Register(ctx *fiber.Ctx) error {
 	var req dto.RegisterRequest
 
@@ -45,6 +55,16 @@ func (c *AuthController) Register(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusCreated, "Register successfully", resp)
 }
 
+// Login godoc
+// @Summary Login
+// @Description Login untuk user (admin/guru) maupun peserta (siswa) menggunakan username & password yang sama. Sistem otomatis mendeteksi apakah username adalah user internal atau peserta (peserta divalidasi ke API sekolah eksternal).
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.LoginRequest true "Kredensial login"
+// @Success 200 {object} helpers.Response{data=dto.AuthResponse} "Login successfully, berisi JWT token"
+// @Failure 401 {object} helpers.Response "Username tidak ditemukan atau password salah"
+// @Router /auth/login [post]
 func (c *AuthController) Login(ctx *fiber.Ctx) error {
 	var req dto.LoginRequest
 
@@ -64,6 +84,16 @@ func (c *AuthController) Login(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Login successfully", resp)
 }
 
+// GetCurrentUser godoc
+// @Summary Info user yang sedang login
+// @Description Mengambil data user/peserta yang sedang login berdasarkan JWT token yang dikirim.
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} helpers.Response{data=dto.CurrentUserResponse} "Get current user successfully"
+// @Failure 401 {object} helpers.Response "Token tidak valid"
+// @Failure 404 {object} helpers.Response "User/peserta tidak ditemukan"
+// @Router /auth/me [get]
 func (c *AuthController) GetCurrentUser(ctx *fiber.Ctx) error {
 	user := ctx.Locals("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)

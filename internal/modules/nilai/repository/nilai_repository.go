@@ -17,6 +17,8 @@ type NilaiWithDetail struct {
 	WktMulai          *string `gorm:"column:wkt_mulai"`
 	AktivitasTerakhir *string `gorm:"column:aktivitas_terakhir"`
 	WktSelesai        *string `gorm:"column:wkt_selesai"`
+	IDSectionAktif    *string `gorm:"column:id_section_aktif"`
+	WktMulaiSection   *string `gorm:"column:wkt_mulai_section"`
 	CreatedAt         string  `gorm:"column:created_at"`
 	UpdatedAt         string  `gorm:"column:updated_at"`
 }
@@ -80,6 +82,8 @@ func (r *nilaiRepository) GetByIDWithDetail(id string) (*NilaiWithDetail, error)
 			TO_CHAR(nilai.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai,
 			TO_CHAR(nilai.aktivitas_terakhir, 'YYYY-MM-DD HH24:MI:SS') AS aktivitas_terakhir,
 			TO_CHAR(nilai.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai,
+			nilai.id_section_aktif,
+			TO_CHAR(nilai.wkt_mulai_section, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai_section,
 			TO_CHAR(nilai.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
 			TO_CHAR(nilai.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
 		`).
@@ -133,6 +137,8 @@ func (r *nilaiRepository) GetAllWithDetail(page, pageSize int, idPeserta, idJadw
 			TO_CHAR(nilai.wkt_mulai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai,
 			TO_CHAR(nilai.aktivitas_terakhir, 'YYYY-MM-DD HH24:MI:SS') AS aktivitas_terakhir,
 			TO_CHAR(nilai.wkt_selesai, 'YYYY-MM-DD HH24:MI:SS') AS wkt_selesai,
+			nilai.id_section_aktif,
+			TO_CHAR(nilai.wkt_mulai_section, 'YYYY-MM-DD HH24:MI:SS') AS wkt_mulai_section,
 			TO_CHAR(nilai.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
 			TO_CHAR(nilai.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
 		`).

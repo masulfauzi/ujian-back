@@ -10,6 +10,7 @@ import (
 	mapelmodel       "backend/internal/modules/mapel/model"
 	nilaimodel       "backend/internal/modules/nilai/model"
 	pesertamodel     "backend/internal/modules/peserta/model"
+	sectionmodel     "backend/internal/modules/section/model"
 	soalmodel        "backend/internal/modules/soal/model"
 	usermodel        "backend/internal/modules/user/model"
 
@@ -48,6 +49,7 @@ func RunMigrations(db *gorm.DB) error {
 		&pesertamodel.Peserta{},
 		&nilaimodel.Nilai{},
 		&jawabanmodel.Jawaban{},
+		&sectionmodel.Section{},
 	); err != nil {
 		return err
 	}
@@ -57,6 +59,7 @@ func RunMigrations(db *gorm.DB) error {
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_nilai_peserta_jadwal_unique ON nilai(id_peserta, id_jadwal) WHERE deleted_at IS NULL")
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jawaban_nilai_soal_unique ON jawaban(id_nilai, id_soal) WHERE deleted_at IS NULL")
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_soal_bank_no_unique ON soal(id_bank_soal, no_soal) WHERE deleted_at IS NULL")
+	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_section_jadwal_urutan_unique ON section(id_jadwal, urutan) WHERE deleted_at IS NULL")
 
 	return nil
 }

@@ -28,6 +28,8 @@ type NilaiResponse struct {
 	WktMulai          *string `json:"wkt_mulai"`
 	AktivitasTerakhir *string `json:"aktivitas_terakhir"`
 	WktSelesai        *string `json:"wkt_selesai"`
+	IDSectionAktif    *string `json:"id_section_aktif"`
+	WktMulaiSection   *string `json:"wkt_mulai_section"`
 	CreatedAt         string  `json:"created_at"`
 	UpdatedAt         string  `json:"updated_at"`
 }
@@ -38,4 +40,17 @@ type NilaiListResponse struct {
 	Page      int             `json:"page"`
 	PageSize  int             `json:"page_size"`
 	TotalPage int             `json:"total_page"`
+}
+
+// SectionProgressResponse dikembalikan oleh endpoint next-section & section-status.
+type SectionProgressResponse struct {
+	IDNilai            string `json:"id_nilai"`
+	IDSection          string `json:"id_section"`
+	NamaSection        string `json:"nama_section"`
+	Urutan             int    `json:"urutan"`
+	DurasiMenitMinimal int    `json:"durasi_menit_minimal"`
+	SudahLanjut        bool   `json:"sudah_lanjut"`
+	BolehLanjut        bool   `json:"boleh_lanjut"`
+	SisaDetik          int    `json:"sisa_detik"`
+	IsSectionTerakhir  bool   `json:"is_section_terakhir"`
 }

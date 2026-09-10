@@ -12,15 +12,22 @@ import (
 	"backend/internal/modules/jawaban/dto"
 	"backend/internal/modules/jawaban/model"
 	"backend/internal/modules/jawaban/repository"
+	nilairepo "backend/internal/modules/nilai/repository"
+	sectionrepo "backend/internal/modules/section/repository"
 
 	"gorm.io/gorm"
 )
+
+// ErrSectionBelumTerbuka dikembalikan ketika section yang diminta belum dibuka (urutan-nya
+// lebih besar dari section aktif/frontier sesi ujian ini) — dipakai controller untuk balas 403.
+var ErrSectionBelumTerbuka = errors.New("section ini belum terbuka")
 
 type JawabanService interface {
 	CreateJawaban(req *dto.CreateJawabanRequest) (*dto.JawabanResponse, error)
 	GetJawabanByID(id string) (*dto.JawabanResponse, error)
 	GetAllJawaban(page, pageSize int, idNilai, idPeserta, idSoal string) (*dto.JawabanListResponse, error)
 	GetJawabanByNilai(idNilai string) ([]dto.JawabanResponse, error)
+	GetJawabanByNilaiSection(idNilai, idSection string) ([]dto.JawabanResponse, error)
 	GetJawabanByPeserta(idPeserta string, page, pageSize int) (*dto.JawabanListResponse, error)
 	UpdateJawaban(id string, req *dto.UpdateJawabanRequest) (*dto.JawabanResponse, error)
 	DeleteJawaban(id string) error
@@ -28,11 +35,13 @@ type JawabanService interface {
 }
 
 type jawabanService struct {
-	repo repository.JawabanRepository
+	repo        repository.JawabanRepository
+	nilaiRepo   nilairepo.NilaiRepository
+	sectionRepo sectionrepo.SectionRepository
 }
 
-func NewJawabanService(repo repository.JawabanRepository) JawabanService {
-	return &jawabanService{repo: repo}
+func NewJawabanService(repo repository.JawabanRepository, nilaiRepo nilairepo.NilaiRepository, sectionRepo sectionrepo.SectionRepository) JawabanService {
+	return &jawabanService{repo: repo, nilaiRepo: nilaiRepo, sectionRepo: sectionRepo}
 }
 
 func normalizeJawaban(j string) (string, error) {
@@ -201,6 +210,52 @@ func (s *jawabanService) GetJawabanByNilai(idNilai string) ([]dto.JawabanRespons
 		return nil, err
 	}
 	return resp.Data, nil
+}
+
+// GetJawabanByNilaiSection mengambil soal satu sesi ujian yang berada dalam satu section.
+// Section dengan urutan di atas frontier (nilai.IDSectionAktif) ditolak dengan ErrSectionBelumTerbuka,
+// supaya siswa tidak bisa melihat soal section berikutnya sebelum waktu minimal terlampaui.
+func (s *jawabanService) GetJawabanByNilaiSection(idNilai, idSection string) ([]dto.JawabanResponse, error) {
+	section, err := s.sectionRepo.GetByID(idSection)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("section tidak ditemukan")
+		}
+		return nil, err
+	}
+
+	nilai, err := s.nilaiRepo.GetByID(idNilai)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New(constants.ErrNotFound)
+		}
+		return nil, err
+	}
+	if section.IDJadwal != nilai.IDJadwal {
+		return nil, errors.New("section tidak sesuai dengan jadwal sesi ujian ini")
+	}
+	if nilai.IDSectionAktif == nil {
+		return nil, errors.New("sesi ujian ini tidak menggunakan section")
+	}
+
+	activeSection, err := s.sectionRepo.GetByID(*nilai.IDSectionAktif)
+	if err != nil {
+		return nil, err
+	}
+	if section.Urutan > activeSection.Urutan {
+		return nil, ErrSectionBelumTerbuka
+	}
+
+	results, err := s.repo.GetByNilaiIDInRange(idNilai, section.NoUrutAwal, section.NoUrutAkhir)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]dto.JawabanResponse, len(results))
+	for i, r := range results {
+		responses[i] = *detailToResponse(&r)
+	}
+	return responses, nil
 }
 
 func (s *jawabanService) GetJawabanByPeserta(idPeserta string, page, pageSize int) (*dto.JawabanListResponse, error) {

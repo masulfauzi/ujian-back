@@ -21,6 +21,31 @@ func NewSoalController(service service.SoalService, jadwalRepo jadwalrepo.Jadwal
 	return &SoalController{service: service, jadwalRepo: jadwalRepo}
 }
 
+// CreateSoal godoc
+// @Summary Buat soal baru
+// @Description Dikirim sebagai multipart/form-data karena mendukung upload gambar untuk soal maupun tiap opsi jawaban.
+// @Tags Soal
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param id_bank_soal formData string true "ID bank soal (uuid)"
+// @Param no_soal formData int false "Nomor urut soal dalam bank soal"
+// @Param soal formData string false "Teks soal (bisa HTML)"
+// @Param opsi_a formData string false "Teks opsi A"
+// @Param opsi_b formData string false "Teks opsi B"
+// @Param opsi_c formData string false "Teks opsi C"
+// @Param opsi_d formData string false "Teks opsi D"
+// @Param opsi_e formData string false "Teks opsi E"
+// @Param kunci formData string true "Kunci jawaban benar, 1 huruf A-E"
+// @Param gambar_soal formData file false "Gambar untuk soal"
+// @Param gambar_a formData file false "Gambar untuk opsi A"
+// @Param gambar_b formData file false "Gambar untuk opsi B"
+// @Param gambar_c formData file false "Gambar untuk opsi C"
+// @Param gambar_d formData file false "Gambar untuk opsi D"
+// @Param gambar_e formData file false "Gambar untuk opsi E"
+// @Success 201 {object} helpers.Response{data=dto.SoalResponse} "Create soal successfully"
+// @Failure 400 {object} helpers.Response "Validasi gagal"
+// @Router /soal [post]
 func (c *SoalController) CreateSoal(ctx *fiber.Ctx) error {
 	req := new(dto.CreateSoalRequest)
 
@@ -65,6 +90,15 @@ func (c *SoalController) CreateSoal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusCreated, "Create soal successfully", resp)
 }
 
+// GetSoalByID godoc
+// @Summary Detail soal
+// @Description Jika request memakai JWT milik peserta yang sedang mengerjakan jadwal dengan acak_opsi aktif, urutan opsi jawaban akan otomatis diacak secara konsisten untuk peserta tersebut.
+// @Tags Soal
+// @Produce json
+// @Param id path string true "ID soal (uuid)"
+// @Success 200 {object} helpers.Response{data=dto.SoalResponse} "Get soal successfully"
+// @Failure 404 {object} helpers.Response "Soal tidak ditemukan"
+// @Router /soal/{id} [get]
 func (c *SoalController) GetSoalByID(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
@@ -85,6 +119,15 @@ func (c *SoalController) GetSoalByID(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get soal successfully", resp)
 }
 
+// GetAllSoal godoc
+// @Summary List semua soal
+// @Tags Soal
+// @Produce json
+// @Param page query int false "Halaman" default(1)
+// @Param page_size query int false "Jumlah per halaman" default(10)
+// @Success 200 {object} helpers.Response{data=dto.SoalListResponse} "Get all soal successfully"
+// @Failure 500 {object} helpers.Response "Gagal mengambil data"
+// @Router /soal [get]
 func (c *SoalController) GetAllSoal(ctx *fiber.Ctx) error {
 	page := ctx.Query("page", "1")
 	pageSize := ctx.Query("page_size", "10")
@@ -107,6 +150,16 @@ func (c *SoalController) GetAllSoal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get all soal successfully", resp)
 }
 
+// GetSoalByBankSoal godoc
+// @Summary List soal dalam satu bank soal
+// @Tags Soal
+// @Produce json
+// @Param bank_soal_id path string true "ID bank soal (uuid)"
+// @Param page query int false "Halaman" default(1)
+// @Param page_size query int false "Jumlah per halaman" default(10)
+// @Success 200 {object} helpers.Response{data=dto.SoalListResponse} "Get soal by bank successfully"
+// @Failure 500 {object} helpers.Response "Gagal mengambil data"
+// @Router /soal/bank/{bank_soal_id} [get]
 func (c *SoalController) GetSoalByBankSoal(ctx *fiber.Ctx) error {
 	bankSoalID := ctx.Params("bank_soal_id")
 	page := ctx.Query("page", "1")
@@ -130,6 +183,31 @@ func (c *SoalController) GetSoalByBankSoal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get soal by bank successfully", resp)
 }
 
+// UpdateSoal godoc
+// @Summary Update soal
+// @Description Dikirim sebagai multipart/form-data. Field gambar hanya perlu dikirim jika ingin mengganti gambar yang sudah ada.
+// @Tags Soal
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID soal (uuid)"
+// @Param no_soal formData int false "Nomor urut soal dalam bank soal"
+// @Param soal formData string false "Teks soal (bisa HTML)"
+// @Param opsi_a formData string false "Teks opsi A"
+// @Param opsi_b formData string false "Teks opsi B"
+// @Param opsi_c formData string false "Teks opsi C"
+// @Param opsi_d formData string false "Teks opsi D"
+// @Param opsi_e formData string false "Teks opsi E"
+// @Param kunci formData string true "Kunci jawaban benar, 1 huruf A-E"
+// @Param gambar_soal formData file false "Gambar untuk soal"
+// @Param gambar_a formData file false "Gambar untuk opsi A"
+// @Param gambar_b formData file false "Gambar untuk opsi B"
+// @Param gambar_c formData file false "Gambar untuk opsi C"
+// @Param gambar_d formData file false "Gambar untuk opsi D"
+// @Param gambar_e formData file false "Gambar untuk opsi E"
+// @Success 200 {object} helpers.Response{data=dto.SoalResponse} "Update soal successfully"
+// @Failure 400 {object} helpers.Response "Validasi gagal"
+// @Router /soal/{id} [put]
 func (c *SoalController) UpdateSoal(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 	req := new(dto.UpdateSoalRequest)
@@ -174,6 +252,15 @@ func (c *SoalController) UpdateSoal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Update soal successfully", resp)
 }
 
+// DeleteSoal godoc
+// @Summary Hapus soal (soft delete)
+// @Tags Soal
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID soal (uuid)"
+// @Success 200 {object} helpers.Response "Delete soal successfully"
+// @Failure 400 {object} helpers.Response "Gagal menghapus"
+// @Router /soal/{id} [delete]
 func (c *SoalController) DeleteSoal(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
@@ -185,6 +272,15 @@ func (c *SoalController) DeleteSoal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Delete soal successfully", nil)
 }
 
+// RestoreSoal godoc
+// @Summary Restore soal yang sudah dihapus
+// @Tags Soal
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID soal (uuid)"
+// @Success 200 {object} helpers.Response "Restore soal successfully"
+// @Failure 400 {object} helpers.Response "Gagal restore"
+// @Router /soal/{id}/restore [patch]
 func (c *SoalController) RestoreSoal(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
@@ -196,6 +292,18 @@ func (c *SoalController) RestoreSoal(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Restore soal successfully", nil)
 }
 
+// ImportSoalFromExcel godoc
+// @Summary Import soal dari file Excel
+// @Description Upload file .xls/.xlsx (maks 10MB) berisi banyak soal sekaligus untuk satu bank soal.
+// @Tags Soal
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param id_bank_soal formData string true "ID bank soal (uuid) tujuan import"
+// @Param file formData file true "File Excel (.xls/.xlsx)"
+// @Success 200 {object} helpers.Response{data=dto.ImportSoalResponse} "Import soal berhasil"
+// @Failure 400 {object} helpers.Response "File tidak valid atau import gagal"
+// @Router /soal/import [post]
 func (c *SoalController) ImportSoalFromExcel(ctx *fiber.Ctx) error {
 	// 1. Parse multipart form
 	file, err := ctx.FormFile("file")
