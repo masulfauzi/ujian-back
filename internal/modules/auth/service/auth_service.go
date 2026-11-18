@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"backend/internal/constants"
 	"backend/internal/modules/auth/dto"
 	"backend/internal/modules/auth/repository"
+	pesertamodel "backend/internal/modules/peserta/model"
 	"backend/internal/modules/user/model"
 	"backend/internal/utils"
 
@@ -19,9 +21,17 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	ErrSSOInvalid       = errors.New("Sesi login otomatis tidak valid atau kedaluwarsa")
+	ErrSSONotRegistered = errors.New("Anda tidak terdaftar sebagai peserta ujian")
+	ErrSSONotConfigured = errors.New("SSO belum dikonfigurasi")
+	ErrSSOUnavailable   = errors.New("Layanan login otomatis tidak dapat dihubungi, silakan coba lagi")
+)
+
 type AuthService interface {
 	Register(req *dto.RegisterRequest) (*dto.AuthResponse, error)
 	Login(req *dto.LoginRequest) (*dto.AuthResponse, error)
+	LoginSSO(code string) (*dto.AuthResponse, error)
 	ValidateToken(tokenString string) (*jwt.Token, error)
 	GenerateToken(user *model.User) (string, error)
 }
@@ -111,6 +121,65 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 		return nil, errors.New("invalid password")
 	}
 
+	return s.issuePesertaToken(peserta)
+}
+
+// LoginSSO menukar kode SSO sekali pakai dari sianida menjadi JWT peserta.
+func (s *authService) LoginSSO(code string) (*dto.AuthResponse, error) {
+	cfg := configs.GetSSOConfig()
+	if cfg.Secret == "" {
+		return nil, ErrSSONotConfigured
+	}
+
+	body, err := json.Marshal(map[string]string{"code": code})
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, cfg.VerifyURL, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-SSO-Secret", cfg.Secret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("SSO: gagal menghubungi sianida: %v", err)
+		return nil, ErrSSOUnavailable
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// 404 = kode salah/kedaluwarsa/sudah dipakai, 401 = secret salah
+		log.Printf("SSO: verifikasi sianida gagal, status %d", resp.StatusCode)
+		return nil, ErrSSOInvalid
+	}
+
+	var result struct {
+		Username string `json:"username"`
+		Name     string `json:"name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.Username == "" {
+		log.Printf("SSO: respons sianida tidak valid")
+		return nil, ErrSSOInvalid
+	}
+
+	peserta, err := s.repo.GetPesertaByUsername(result.Username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSSONotRegistered
+		}
+		return nil, err
+	}
+
+	return s.issuePesertaToken(peserta)
+}
+
+// issuePesertaToken membuat JWT untuk peserta; dipakai Login dan LoginSSO agar isi token identik.
+func (s *authService) issuePesertaToken(peserta *pesertamodel.Peserta) (*dto.AuthResponse, error) {
 	tempUser := &model.User{
 		ID:     peserta.ID,
 		Name:   peserta.Nama,

@@ -170,6 +170,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/sso": {
+            "post": {
+                "description": "Menukar kode SSO sekali pakai (diterbitkan sianida, berlaku 60 detik) menjadi JWT peserta. Isi token identik dengan login peserta biasa.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login otomatis peserta dari aplikasi Skanida Student",
+                "parameters": [
+                    {
+                        "description": "Kode SSO",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_modules_auth_dto.SSOLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successfully, berisi JWT token",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/backend_internal_helpers.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/backend_internal_modules_auth_dto.AuthResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Format request atau validasi gagal",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Kode tidak valid/kedaluwarsa atau bukan peserta ujian",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/bank-soal": {
             "get": {
                 "produces": [
@@ -4812,6 +4870,18 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "backend_internal_modules_auth_dto.SSOLoginRequest": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 100
                 }
             }
         },
