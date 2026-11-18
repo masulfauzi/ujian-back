@@ -60,6 +60,14 @@ definitions:
     - password
     - username
     type: object
+  backend_internal_modules_auth_dto.SSOLoginRequest:
+    properties:
+      code:
+        maxLength: 100
+        type: string
+    required:
+    - code
+    type: object
   backend_internal_modules_bank_soal_dto.BankSoalListResponse:
     properties:
       data:
@@ -1054,6 +1062,42 @@ paths:
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
       summary: Register user baru
+      tags:
+      - Auth
+  /auth/sso:
+    post:
+      consumes:
+      - application/json
+      description: Menukar kode SSO sekali pakai (diterbitkan sianida, berlaku 60
+        detik) menjadi JWT peserta. Isi token identik dengan login peserta biasa.
+      parameters:
+      - description: Kode SSO
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/backend_internal_modules_auth_dto.SSOLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successfully, berisi JWT token
+          schema:
+            allOf:
+            - $ref: '#/definitions/backend_internal_helpers.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/backend_internal_modules_auth_dto.AuthResponse'
+              type: object
+        "400":
+          description: Format request atau validasi gagal
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "401":
+          description: Kode tidak valid/kedaluwarsa atau bukan peserta ujian
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+      summary: Login otomatis peserta dari aplikasi Skanida Student
       tags:
       - Auth
   /bank-soal:

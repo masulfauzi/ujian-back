@@ -13,3 +13,7 @@ func ValidateRegister(data interface{}) error {
 func ValidateLogin(data interface{}) error {
 	return validate.Struct(data)
 }
+
+func ValidateSSOLogin(data interface{}) error {
+	return validate.Struct(data)
+}

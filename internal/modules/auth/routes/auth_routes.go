@@ -31,5 +31,6 @@ func SetupAuthRoutes(app *fiber.App, db *gorm.DB) {
 
 	auth.Post("/register", ctrl.Register)
 	auth.Post("/login", ctrl.Login)
+	auth.Post("/sso", ctrl.SSOLogin)
 	auth.Get("/me", middleware.JWTAuth(), ctrl.GetCurrentUser)
 }

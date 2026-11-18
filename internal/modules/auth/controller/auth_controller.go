@@ -84,6 +84,36 @@ func (c *AuthController) Login(ctx *fiber.Ctx) error {
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Login successfully", resp)
 }
 
+// SSOLogin godoc
+// @Summary Login otomatis peserta dari aplikasi Skanida Student
+// @Description Menukar kode SSO sekali pakai (diterbitkan sianida, berlaku 60 detik) menjadi JWT peserta. Isi token identik dengan login peserta biasa.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.SSOLoginRequest true "Kode SSO"
+// @Success 200 {object} helpers.Response{data=dto.AuthResponse} "Login successfully, berisi JWT token"
+// @Failure 400 {object} helpers.Response "Format request atau validasi gagal"
+// @Failure 401 {object} helpers.Response "Kode tidak valid/kedaluwarsa atau bukan peserta ujian"
+// @Router /auth/sso [post]
+func (c *AuthController) SSOLogin(ctx *fiber.Ctx) error {
+	var req dto.SSOLoginRequest
+
+	if err := ctx.BodyParser(&req); err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Invalid request format", nil)
+	}
+
+	if err := validator.ValidateSSOLogin(req); err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Validation error", nil)
+	}
+
+	resp, err := c.authService.LoginSSO(req.Code)
+	if err != nil {
+		return helpers.ErrorResponse(ctx, fiber.StatusUnauthorized, err.Error(), nil)
+	}
+
+	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Login successfully", resp)
+}
+
 // GetCurrentUser godoc
 // @Summary Info user yang sedang login
 // @Description Mengambil data user/peserta yang sedang login berdasarkan JWT token yang dikirim.

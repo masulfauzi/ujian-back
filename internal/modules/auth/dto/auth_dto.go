@@ -26,3 +26,7 @@ type CurrentUserResponse struct {
 	Email string `json:"email"`
 	Role  string `json:"role"`
 }
+
+type SSOLoginRequest struct {
+	Code string `json:"code" validate:"required,max=100"`
+}
