@@ -8,6 +8,10 @@ import (
 )
 
 func RunSeeders(db *gorm.DB) error {
+	if err := seeders.SeedAdmin(db); err != nil {
+		return fmt.Errorf("failed to seed admin: %w", err)
+	}
+
 	if err := seeders.SeedMapel(db); err != nil {
 		return fmt.Errorf("failed to seed mapel: %w", err)
 	}
