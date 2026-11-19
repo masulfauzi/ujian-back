@@ -9,6 +9,7 @@ import (
 type ExcelSoalRow struct {
 	RowIndex   int
 	NoSoal     int
+	Jenis      string
 	Soal       string
 	OpsiA      string
 	OpsiB      string
@@ -55,7 +56,7 @@ func ParseExcelRow(values []string, rowIndex int) (*ExcelSoalRow, error) {
 		OpsiD:      getValueAt(5),
 		OpsiE:      getValueAt(6),
 		Kunci:      toUpperStringFromValue(getValueAt(7)),
-		// Column I (index 8) skipped
+		Jenis:      strings.ToLower(toStringFromValue(getValueAt(8))),
 		GambarSoal: getValueAt(9),
 		// Column K (index 10) skipped
 		GambarA: getValueAt(11),

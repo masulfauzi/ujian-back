@@ -5,11 +5,11 @@ type CreateJawabanRequest struct {
 	IDSoal    string `json:"id_soal" validate:"required"`
 	IDPeserta string `json:"id_peserta" validate:"required"`
 	NoUrut    int    `json:"no_urut" validate:"required"`
-	Jawaban   string `json:"jawaban" validate:"required,oneof=A B C D E"`
+	Jawaban   string `json:"jawaban" validate:"required,max=10"`
 }
 
 type UpdateJawabanRequest struct {
-	Jawaban string `json:"jawaban" validate:"required,oneof=A B C D E"`
+	Jawaban string `json:"jawaban" validate:"required,max=10"`
 }
 
 type JawabanResponse struct {
@@ -19,6 +19,7 @@ type JawabanResponse struct {
 	NoUrut      int    `json:"no_urut"`
 	NoSoal      int    `json:"no_soal"`
 	SoalText    string `json:"soal"`
+	Jenis       string `json:"jenis"`
 	Kunci       string `json:"kunci"`
 	OpsiA       string `json:"opsi_a"`
 	OpsiB       string `json:"opsi_b"`
@@ -34,6 +35,7 @@ type JawabanResponse struct {
 	NamaPeserta string `json:"nama_peserta"`
 	Jawaban     *string `json:"jawaban"`
 	IsBenar     *int   `json:"is_benar"`
+	Skor        *int   `json:"skor"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }

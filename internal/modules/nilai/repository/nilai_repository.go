@@ -203,15 +203,19 @@ func (r *nilaiRepository) GetByPesertaAndJadwal(idPeserta, idJadwal string) (*mo
 	return &nilai, nil
 }
 
+// HitungNilai = total poin ÷ total poin maksimal × 100.
+// Poin maks: soal bs = 2, pg/pgk = 1. Jawaban lama (sebelum ada kolom skor) memakai is_benar.
 func (r *nilaiRepository) HitungNilai(idNilai string) (float64, error) {
 	var hasil float64
 	err := r.db.Raw(`
 		SELECT COALESCE(
-			COUNT(*) FILTER (WHERE is_benar = 1) * 100.0 / NULLIF(COUNT(*), 0),
+			SUM(COALESCE(jawaban.skor, jawaban.is_benar, 0)) * 100.0
+				/ NULLIF(SUM(CASE WHEN soal.jenis = 'bs' THEN 2 ELSE 1 END), 0),
 			0
 		)
 		FROM jawaban
-		WHERE id_nilai = ? AND deleted_at IS NULL
+		INNER JOIN soal ON soal.id = jawaban.id_soal
+		WHERE jawaban.id_nilai = ? AND jawaban.deleted_at IS NULL
 	`, idNilai).Scan(&hasil).Error
 	return hasil, err
 }

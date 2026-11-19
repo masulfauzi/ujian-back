@@ -4,15 +4,30 @@ import (
 	"strings"
 )
 
-// ValidateSoalRow memvalidasi satu row dari excel
+// ValidateSoalRow memvalidasi satu row dari excel. Jenis & kunci yang valid
+// ditulis kembali ke row dalam bentuk ternormalisasi (mis. kunci pgk "C,A" → "AC").
 func ValidateSoalRow(row *ExcelSoalRow) []string {
 	var errors []string
 
-	kunci := strings.TrimSpace(row.Kunci)
-	if kunci == "" {
-		errors = append(errors, "kunci tidak boleh kosong")
-	} else if !IsValidKunci(kunci) {
-		errors = append(errors, "kunci harus berupa A, B, C, D, atau E")
+	jenis, err := NormalizeJenis(row.Jenis)
+	if err != nil {
+		return append(errors, err.Error())
+	}
+	row.Jenis = jenis
+
+	if strings.TrimSpace(row.Kunci) == "" {
+		return append(errors, "kunci tidak boleh kosong")
+	}
+	kunci, err := NormalizeKunci(jenis, row.Kunci)
+	if err != nil {
+		return append(errors, err.Error())
+	}
+	row.Kunci = kunci
+
+	opsi := []string{row.OpsiA, row.OpsiB, row.OpsiC, row.OpsiD, row.OpsiE}
+	adaGambar := []bool{row.GambarA != "", row.GambarB != "", row.GambarC != "", row.GambarD != "", row.GambarE != ""}
+	if err := ValidateOpsiSoal(jenis, kunci, opsi, adaGambar); err != nil {
+		errors = append(errors, err.Error())
 	}
 
 	return errors

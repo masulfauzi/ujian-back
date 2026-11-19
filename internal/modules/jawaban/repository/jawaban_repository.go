@@ -14,6 +14,7 @@ type JawabanWithDetail struct {
 	NoUrut      int     `gorm:"column:no_urut"`
 	NoSoal      int     `gorm:"column:no_soal"`
 	SoalText    string  `gorm:"column:soal_text"`
+	Jenis       string  `gorm:"column:jenis"`
 	Kunci       string  `gorm:"column:kunci"`
 	OpsiA       string  `gorm:"column:opsi_a"`
 	OpsiB       string  `gorm:"column:opsi_b"`
@@ -29,6 +30,7 @@ type JawabanWithDetail struct {
 	NamaPeserta string  `gorm:"column:nama_peserta"`
 	Jawaban     *string `gorm:"column:jawaban"`
 	IsBenar     *int    `gorm:"column:is_benar"`
+	Skor        *int    `gorm:"column:skor"`
 	AcakOpsi    int     `gorm:"column:acak_opsi"`
 	CreatedAt   string  `gorm:"column:created_at"`
 	UpdatedAt   string  `gorm:"column:updated_at"`
@@ -42,7 +44,7 @@ type JawabanRepository interface {
 	GetByNilaiID(idNilai string, page, pageSize int) ([]JawabanWithDetail, int64, error)
 	GetByNilaiIDInRange(idNilai string, noUrutAwal, noUrutAkhir int) ([]JawabanWithDetail, error)
 	GetByPesertaID(idPeserta string, page, pageSize int) ([]JawabanWithDetail, int64, error)
-	GetSoalKunci(idSoal string) (string, error)
+	GetSoalKunciJenis(idSoal string) (kunci, jenis string, err error)
 	CheckDuplicate(idNilai, idSoal string) (bool, error)
 	Update(jawaban *model.Jawaban) error
 	Delete(id string) error
@@ -95,6 +97,7 @@ func (r *jawabanRepository) GetByIDWithDetail(id string) (*JawabanWithDetail, er
 			jawaban.no_urut,
 			soal.no_soal,
 			soal.soal AS soal_text,
+			soal.jenis,
 			soal.kunci,
 			soal.opsi_a,
 			soal.opsi_b,
@@ -110,6 +113,7 @@ func (r *jawabanRepository) GetByIDWithDetail(id string) (*JawabanWithDetail, er
 			peserta.nama AS nama_peserta,
 			jawaban.jawaban,
 			jawaban.is_benar,
+			jawaban.skor,
 			jadwal.acak_opsi::int AS acak_opsi,
 			jawaban.created_at,
 			jawaban.updated_at
@@ -169,6 +173,7 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 			jawaban.no_urut,
 			soal.no_soal,
 			soal.soal AS soal_text,
+			soal.jenis,
 			soal.kunci,
 			soal.opsi_a,
 			soal.opsi_b,
@@ -184,6 +189,7 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 			peserta.nama AS nama_peserta,
 			jawaban.jawaban,
 			jawaban.is_benar,
+			jawaban.skor,
 			jadwal.acak_opsi::int AS acak_opsi,
 			jawaban.created_at,
 			jawaban.updated_at
@@ -210,6 +216,7 @@ func (r *jawabanRepository) GetByNilaiIDInRange(idNilai string, noUrutAwal, noUr
 			jawaban.no_urut,
 			soal.no_soal,
 			soal.soal AS soal_text,
+			soal.jenis,
 			soal.kunci,
 			soal.opsi_a,
 			soal.opsi_b,
@@ -225,6 +232,7 @@ func (r *jawabanRepository) GetByNilaiIDInRange(idNilai string, noUrutAwal, noUr
 			peserta.nama AS nama_peserta,
 			jawaban.jawaban,
 			jawaban.is_benar,
+			jawaban.skor,
 			jadwal.acak_opsi::int AS acak_opsi,
 			jawaban.created_at,
 			jawaban.updated_at
@@ -243,13 +251,16 @@ func (r *jawabanRepository) GetByPesertaID(idPeserta string, page, pageSize int)
 	return r.GetAllWithDetail(page, pageSize, "", idPeserta, "")
 }
 
-func (r *jawabanRepository) GetSoalKunci(idSoal string) (string, error) {
-	var kunci string
-	err := r.db.Table("soal").
-		Select("kunci").
+func (r *jawabanRepository) GetSoalKunciJenis(idSoal string) (kunci, jenis string, err error) {
+	var row struct {
+		Kunci string
+		Jenis string
+	}
+	err = r.db.Table("soal").
+		Select("kunci, jenis").
 		Where("id = ? AND deleted_at IS NULL", idSoal).
-		Scan(&kunci).Error
-	return kunci, err
+		Scan(&row).Error
+	return row.Kunci, row.Jenis, err
 }
 
 func (r *jawabanRepository) CheckDuplicate(idNilai, idSoal string) (bool, error) {

@@ -34,3 +34,10 @@ const (
 	SuccessDelete   = "Delete successfully"
 	SuccessGetAll   = "Get all data successfully"
 )
+
+// Jenis Soal
+const (
+	JenisSoalPG  = "pg"  // pilihan ganda biasa, kunci 1 huruf A-E
+	JenisSoalPGK = "pgk" // pilihan ganda kompleks, kunci >= 2 huruf A-E (mis. "AC")
+	JenisSoalBS  = "bs"  // benar/salah, 3 pernyataan di opsi_a-c, kunci 3 karakter B/S (mis. "BSB")
+)

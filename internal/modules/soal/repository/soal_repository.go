@@ -153,6 +153,7 @@ func (r *soalRepository) BulkCreateSoal(ctx context.Context, soals []model.Soal)
 				"soal",
 				"opsi_a", "opsi_b", "opsi_c", "opsi_d", "opsi_e",
 				"gambar_soal", "gambar_a", "gambar_b", "gambar_c", "gambar_d", "gambar_e",
+				"jenis",
 				"kunci",
 				"updated_at",
 			}),

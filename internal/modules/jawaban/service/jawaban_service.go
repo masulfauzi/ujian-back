@@ -14,6 +14,7 @@ import (
 	"backend/internal/modules/jawaban/repository"
 	nilairepo "backend/internal/modules/nilai/repository"
 	sectionrepo "backend/internal/modules/section/repository"
+	"backend/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -44,16 +45,6 @@ func NewJawabanService(repo repository.JawabanRepository, nilaiRepo nilairepo.Ni
 	return &jawabanService{repo: repo, nilaiRepo: nilaiRepo, sectionRepo: sectionRepo}
 }
 
-func normalizeJawaban(j string) (string, error) {
-	j = strings.ToUpper(strings.TrimSpace(j))
-	switch j {
-	case "A", "B", "C", "D", "E":
-		return j, nil
-	default:
-		return "", errors.New("jawaban harus salah satu dari: A, B, C, D, E")
-	}
-}
-
 // generateOpsiOrder menghasilkan urutan acak yang sama dengan soal service.
 // Wajib identik dengan soalService.generateSeed + rand.Shuffle.
 func generateOpsiOrder(pesertaID, soalID string) []string {
@@ -68,15 +59,40 @@ func generateOpsiOrder(pesertaID, soalID string) []string {
 	return order
 }
 
-// reverseMapJawaban mengonversi posisi acak yang dipilih peserta
-// ke posisi asli sebelum diacak, agar bisa dibandingkan dengan kunci di DB.
-func reverseMapJawaban(submittedJawaban, pesertaID, soalID string) string {
-	order := generateOpsiOrder(pesertaID, soalID)
-	idx := int(submittedJawaban[0] - 'A') // "B" → 1
-	if idx < 0 || idx >= len(order) {
-		return submittedJawaban
+// evaluasiJawaban menormalkan jawaban sesuai jenis soal lalu menghitung skor & is_benar.
+// Jika acak_opsi aktif (selain soal bs), huruf yang dipilih peserta (posisi tampilan)
+// dikembalikan ke posisi asli sebelum dibandingkan dengan kunci di DB.
+func (s *jawabanService) evaluasiJawaban(idSoal, idNilai, idPeserta, submitted string) (jawaban string, skor, isBenar int, err error) {
+	kunci, jenis, err := s.repo.GetSoalKunciJenis(idSoal)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", 0, 0, errors.New("soal tidak ditemukan")
+		}
+		return "", 0, 0, err
 	}
-	return order[idx] // posisi asli
+	if kunci == "" {
+		return "", 0, 0, errors.New("soal tidak ditemukan")
+	}
+	if jenis == "" {
+		jenis = constants.JenisSoalPG
+	}
+
+	jawaban, err = utils.NormalizeJawaban(jenis, submitted)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	acakOpsi, err := s.repo.GetAcakOpsiByNilaiID(idNilai)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	evaluated := jawaban
+	if acakOpsi == 1 && jenis != constants.JenisSoalBS {
+		evaluated = utils.MapHurufOpsi(jawaban, generateOpsiOrder(idPeserta, idSoal), true)
+	}
+	skor, isBenar = utils.HitungSkor(jenis, evaluated, strings.TrimSpace(kunci))
+	return jawaban, skor, isBenar, nil
 }
 
 func randomizeOpsi(detail *repository.JawabanWithDetail) (opsiA, opsiB, opsiC, opsiD, opsiE, gambarA, gambarB, gambarC, gambarD, gambarE, kunci string) {
@@ -91,14 +107,7 @@ func randomizeOpsi(detail *repository.JawabanWithDetail) (opsiA, opsiB, opsiC, o
 		"D": detail.GambarD, "E": detail.GambarE,
 	}
 
-	newKunciPos := 0
-	for i, key := range opsiOrder {
-		if key == detail.Kunci {
-			newKunciPos = i
-			break
-		}
-	}
-	newKunci := string(rune('A' + newKunciPos))
+	newKunci := utils.MapHurufOpsi(detail.Kunci, opsiOrder, false)
 
 	return opsiMap[opsiOrder[0]], opsiMap[opsiOrder[1]], opsiMap[opsiOrder[2]], opsiMap[opsiOrder[3]], opsiMap[opsiOrder[4]],
 		gambarMap[opsiOrder[0]], gambarMap[opsiOrder[1]], gambarMap[opsiOrder[2]], gambarMap[opsiOrder[3]], gambarMap[opsiOrder[4]],
@@ -106,11 +115,6 @@ func randomizeOpsi(detail *repository.JawabanWithDetail) (opsiA, opsiB, opsiC, o
 }
 
 func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest) (*dto.JawabanResponse, error) {
-	jawaban, err := normalizeJawaban(req.Jawaban)
-	if err != nil {
-		return nil, err
-	}
-
 	exists, err := s.repo.CheckDuplicate(req.IDNilai, req.IDSoal)
 	if err != nil {
 		return nil, err
@@ -119,29 +123,9 @@ func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest) (*dto.Jawa
 		return nil, errors.New("jawaban untuk soal ini di attempt tersebut sudah ada — gunakan endpoint update")
 	}
 
-	kunci, err := s.repo.GetSoalKunci(req.IDSoal)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("soal tidak ditemukan")
-		}
-		return nil, err
-	}
-	if kunci == "" {
-		return nil, errors.New("soal tidak ditemukan")
-	}
-
-	acakOpsi, err := s.repo.GetAcakOpsiByNilaiID(req.IDNilai)
+	jawaban, skor, isBenarInt, err := s.evaluasiJawaban(req.IDSoal, req.IDNilai, req.IDPeserta, req.Jawaban)
 	if err != nil {
 		return nil, err
-	}
-
-	evaluatedJawaban := jawaban
-	if acakOpsi == 1 {
-		evaluatedJawaban = reverseMapJawaban(jawaban, req.IDPeserta, req.IDSoal)
-	}
-	isBenarInt := 0
-	if strings.EqualFold(evaluatedJawaban, strings.TrimSpace(kunci)) {
-		isBenarInt = 1
 	}
 
 	row := &model.Jawaban{
@@ -151,6 +135,7 @@ func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest) (*dto.Jawa
 		NoUrut:    req.NoUrut,
 		Jawaban:   &jawaban,
 		IsBenar:   &isBenarInt,
+		Skor:      &skor,
 	}
 
 	if err := s.repo.Create(row); err != nil {
@@ -271,38 +256,14 @@ func (s *jawabanService) UpdateJawaban(id string, req *dto.UpdateJawabanRequest)
 		return nil, err
 	}
 
-	jawaban, err := normalizeJawaban(req.Jawaban)
+	jawaban, skor, isBenarInt, err := s.evaluasiJawaban(existing.IDSoal, existing.IDNilai, existing.IDPeserta, req.Jawaban)
 	if err != nil {
 		return nil, err
-	}
-
-	kunci, err := s.repo.GetSoalKunci(existing.IDSoal)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("soal tidak ditemukan")
-		}
-		return nil, err
-	}
-	if kunci == "" {
-		return nil, errors.New("soal tidak ditemukan")
-	}
-
-	acakOpsi, err := s.repo.GetAcakOpsiByNilaiID(existing.IDNilai)
-	if err != nil {
-		return nil, err
-	}
-
-	evaluatedJawaban := jawaban
-	if acakOpsi == 1 {
-		evaluatedJawaban = reverseMapJawaban(jawaban, existing.IDPeserta, existing.IDSoal)
-	}
-	isBenarInt := 0
-	if strings.EqualFold(evaluatedJawaban, strings.TrimSpace(kunci)) {
-		isBenarInt = 1
 	}
 
 	existing.Jawaban = &jawaban
 	existing.IsBenar = &isBenarInt
+	existing.Skor = &skor
 
 	if err := s.repo.Update(existing); err != nil {
 		return nil, err
@@ -335,7 +296,8 @@ func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
 	gambarA, gambarB, gambarC, gambarD, gambarE := r.GambarA, r.GambarB, r.GambarC, r.GambarD, r.GambarE
 	kunci := r.Kunci
 
-	if r.AcakOpsi == 1 {
+	// Urutan pernyataan benar/salah tidak diacak
+	if r.AcakOpsi == 1 && r.Jenis != constants.JenisSoalBS {
 		opsiA, opsiB, opsiC, opsiD, opsiE,
 			gambarA, gambarB, gambarC, gambarD, gambarE,
 			kunci = randomizeOpsi(r)
@@ -348,6 +310,7 @@ func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
 		NoUrut:      r.NoUrut,
 		NoSoal:      r.NoSoal,
 		SoalText:    r.SoalText,
+		Jenis:       r.Jenis,
 		Kunci:       kunci,
 		OpsiA:       opsiA,
 		OpsiB:       opsiB,
@@ -363,6 +326,7 @@ func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
 		NamaPeserta: r.NamaPeserta,
 		Jawaban:     r.Jawaban,
 		IsBenar:     r.IsBenar,
+		Skor:        r.Skor,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}

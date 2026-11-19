@@ -9,6 +9,7 @@ type Soal struct {
 	ID           string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	IdBankSoal   string         `gorm:"type:uuid;index" json:"id_bank_soal"`
 	NoSoal       int            `gorm:"type:integer" json:"no_soal"`
+	Jenis        string         `gorm:"type:varchar(10);not null;default:'pg'" json:"jenis"`
 	Soal         string         `gorm:"type:text" json:"soal"`
 	GambarSoal   string         `gorm:"type:varchar(500)" json:"gambar_soal"`
 	OpsiA        string         `gorm:"type:text" json:"opsi_a"`
@@ -21,7 +22,7 @@ type Soal struct {
 	GambarC      string         `gorm:"type:varchar(500)" json:"gambar_c"`
 	GambarD      string         `gorm:"type:varchar(500)" json:"gambar_d"`
 	GambarE      string         `gorm:"type:varchar(500)" json:"gambar_e"`
-	Kunci        string         `gorm:"type:varchar(1)" json:"kunci"`
+	Kunci        string         `gorm:"type:varchar(5)" json:"kunci"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt    time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt    *time.Time     `gorm:"index" json:"deleted_at"`

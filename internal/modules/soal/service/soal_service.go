@@ -46,8 +46,15 @@ func NewSoalService(repo repository.SoalRepository) SoalService {
 }
 
 func (s *soalService) CreateSoal(req *dto.CreateSoalRequest) (*dto.SoalResponse, error) {
-	if err := s.validateKunci(req.Kunci, req.OpsiA, req.OpsiB, req.OpsiC, req.OpsiD, req.OpsiE); err != nil {
+	jenis, kunci, err := s.validateSoal(req.Jenis, req.Kunci,
+		[]string{req.OpsiA, req.OpsiB, req.OpsiC, req.OpsiD, req.OpsiE},
+		[]bool{req.GambarA != nil, req.GambarB != nil, req.GambarC != nil, req.GambarD != nil, req.GambarE != nil})
+	if err != nil {
 		return nil, err
+	}
+	if jenis == constants.JenisSoalBS {
+		// Soal benar/salah hanya memakai 3 pernyataan (opsi A-C)
+		req.OpsiD, req.OpsiE, req.GambarD, req.GambarE = "", "", nil, nil
 	}
 
 	exists, err := s.repo.CheckDuplicate(req.IdBankSoal, req.NoSoal)
@@ -130,6 +137,7 @@ func (s *soalService) CreateSoal(req *dto.CreateSoalRequest) (*dto.SoalResponse,
 	soal := &model.Soal{
 		IdBankSoal: req.IdBankSoal,
 		NoSoal:     req.NoSoal,
+		Jenis:      jenis,
 		Soal:       req.Soal,
 		GambarSoal: gambarSoalName,
 		OpsiA:      req.OpsiA,
@@ -142,7 +150,7 @@ func (s *soalService) CreateSoal(req *dto.CreateSoalRequest) (*dto.SoalResponse,
 		GambarC:    gambarCName,
 		GambarD:    gambarDName,
 		GambarE:    gambarEName,
-		Kunci:      req.Kunci,
+		Kunci:      kunci,
 	}
 
 	if err := s.repo.Create(soal); err != nil {
@@ -237,8 +245,33 @@ func (s *soalService) UpdateSoal(id string, req *dto.UpdateSoalRequest) (*dto.So
 		return nil, err
 	}
 
-	if err := s.validateKunci(req.Kunci, req.OpsiA, req.OpsiB, req.OpsiC, req.OpsiD, req.OpsiE); err != nil {
+	// Jenis tidak dikirim saat update → pertahankan jenis yang tersimpan
+	if strings.TrimSpace(req.Jenis) == "" {
+		req.Jenis = soal.Jenis
+	}
+	jenis, kunci, err := s.validateSoal(req.Jenis, req.Kunci,
+		[]string{req.OpsiA, req.OpsiB, req.OpsiC, req.OpsiD, req.OpsiE},
+		[]bool{
+			req.GambarA != nil || soal.GambarA != "",
+			req.GambarB != nil || soal.GambarB != "",
+			req.GambarC != nil || soal.GambarC != "",
+			req.GambarD != nil || soal.GambarD != "",
+			req.GambarE != nil || soal.GambarE != "",
+		})
+	if err != nil {
 		return nil, err
+	}
+	if jenis == constants.JenisSoalBS {
+		// Soal benar/salah hanya memakai 3 pernyataan (opsi A-C)
+		req.OpsiD, req.OpsiE, req.GambarD, req.GambarE = "", "", nil, nil
+		if soal.GambarD != "" {
+			utils.DeleteImage(soal.GambarD, "opsi")
+			soal.GambarD = ""
+		}
+		if soal.GambarE != "" {
+			utils.DeleteImage(soal.GambarE, "opsi")
+			soal.GambarE = ""
+		}
 	}
 
 	if req.GambarSoal != nil {
@@ -314,7 +347,8 @@ func (s *soalService) UpdateSoal(id string, req *dto.UpdateSoalRequest) (*dto.So
 	soal.OpsiC = req.OpsiC
 	soal.OpsiD = req.OpsiD
 	soal.OpsiE = req.OpsiE
-	soal.Kunci = req.Kunci
+	soal.Jenis = jenis
+	soal.Kunci = kunci
 
 	if err := s.repo.Update(soal); err != nil {
 		return nil, err
@@ -347,6 +381,11 @@ func (s *soalService) RestoreSoal(id string) error {
 }
 
 func (s *soalService) RandomizeOpsiForSoal(soal *dto.SoalResponse, pesertaID string) *dto.SoalResponse {
+	// Urutan pernyataan benar/salah tidak diacak
+	if soal.Jenis == constants.JenisSoalBS {
+		return soal
+	}
+
 	seed := s.generateSeed(pesertaID, soal.ID)
 	rng := rand.New(rand.NewSource(seed))
 
@@ -370,16 +409,6 @@ func (s *soalService) RandomizeOpsiForSoal(soal *dto.SoalResponse, pesertaID str
 		opsiOrder[i], opsiOrder[j] = opsiOrder[j], opsiOrder[i]
 	})
 
-	newKunciPos := 0
-	for i, key := range opsiOrder {
-		if key == soal.Kunci {
-			newKunciPos = i
-			break
-		}
-	}
-
-	newKunci := string(rune('A' + newKunciPos))
-
 	soal.OpsiA = opsiMap[opsiOrder[0]]
 	soal.OpsiB = opsiMap[opsiOrder[1]]
 	soal.OpsiC = opsiMap[opsiOrder[2]]
@@ -390,7 +419,7 @@ func (s *soalService) RandomizeOpsiForSoal(soal *dto.SoalResponse, pesertaID str
 	soal.GambarC = gambarMap[opsiOrder[2]]
 	soal.GambarD = gambarMap[opsiOrder[3]]
 	soal.GambarE = gambarMap[opsiOrder[4]]
-	soal.Kunci = newKunci
+	soal.Kunci = utils.MapHurufOpsi(soal.Kunci, opsiOrder, false)
 
 	return soal
 }
@@ -401,14 +430,20 @@ func (s *soalService) generateSeed(pesertaID, soalID string) int64 {
 	return seed
 }
 
-func (s *soalService) validateKunci(kunci string, opsiA, opsiB, opsiC, opsiD, opsiE string) error {
-	validKeys := map[string]bool{
-		"A": true, "B": true, "C": true, "D": true, "E": true,
+// validateSoal menormalkan jenis & kunci lalu memvalidasi opsi sesuai jenis soal.
+func (s *soalService) validateSoal(jenis, kunci string, opsi []string, adaGambar []bool) (string, string, error) {
+	jenis, err := utils.NormalizeJenis(jenis)
+	if err != nil {
+		return "", "", err
 	}
-	if !validKeys[kunci] {
-		return errors.New("kunci harus A, B, C, D, atau E")
+	kunci, err = utils.NormalizeKunci(jenis, kunci)
+	if err != nil {
+		return "", "", err
 	}
-	return nil
+	if err := utils.ValidateOpsiSoal(jenis, kunci, opsi, adaGambar); err != nil {
+		return "", "", err
+	}
+	return jenis, kunci, nil
 }
 
 func (s *soalService) modelToResponse(soal *model.Soal) *dto.SoalResponse {
@@ -416,6 +451,7 @@ func (s *soalService) modelToResponse(soal *model.Soal) *dto.SoalResponse {
 		ID:         soal.ID,
 		IdBankSoal: soal.IdBankSoal,
 		NoSoal:     soal.NoSoal,
+		Jenis:      soal.Jenis,
 		Soal:       soal.Soal,
 		GambarSoal: s.buildImageURL(soal.GambarSoal, "soal"),
 		OpsiA:      soal.OpsiA,
@@ -513,6 +549,11 @@ func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSo
 			continue
 		}
 
+		if excelRow.Jenis == constants.JenisSoalBS {
+			// Soal benar/salah hanya memakai 3 pernyataan (opsi A-C)
+			excelRow.OpsiD, excelRow.OpsiE, excelRow.GambarD, excelRow.GambarE = "", "", "", ""
+		}
+
 		// Upload gambar dari source URL ke MinIO jika ada
 		sourceBase := config.GetSoalImageSourceURL()
 		gambarSoal := s.downloadGambar(ctx, sourceBase, excelRow.GambarSoal, "soal")
@@ -526,6 +567,7 @@ func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSo
 		soal := model.Soal{
 			IdBankSoal: req.IdBankSoal,
 			NoSoal:     excelRow.NoSoal,
+			Jenis:      excelRow.Jenis,
 			Soal:       excelRow.Soal,
 			OpsiA:      excelRow.OpsiA,
 			OpsiB:      excelRow.OpsiB,
@@ -575,8 +617,9 @@ func (s *soalService) ImportSoalFromExcel(ctx context.Context, req *dto.ImportSo
 }
 
 // GenerateImportTemplate membuat file .xlsx berisi header kolom yang sama persis dengan
-// urutan yang dibaca utils.ParseExcelRow saat import (kolom I dan K sengaja dikosongkan/
-// tidak dipakai, tapi tetap disediakan agar kolom sesudahnya tidak bergeser index).
+// urutan yang dibaca utils.ParseExcelRow saat import. Kolom I berisi jenis soal (pg/pgk/bs,
+// kosong = pg); kolom K sengaja tidak dipakai, tapi tetap disediakan agar kolom sesudahnya
+// tidak bergeser index.
 func (s *soalService) GenerateImportTemplate() ([]byte, error) {
 	xlsx := excelize.NewFile()
 	defer xlsx.Close()
@@ -586,7 +629,7 @@ func (s *soalService) GenerateImportTemplate() ([]byte, error) {
 
 	headers := []string{
 		"no_soal", "soal", "opsi_a", "opsi_b", "opsi_c", "opsi_d", "opsi_e", "kunci",
-		"(tidak digunakan)", "gambar_soal", "(tidak digunakan)",
+		"jenis", "gambar_soal", "(tidak digunakan)",
 		"gambar_a", "gambar_b", "gambar_c", "gambar_d", "gambar_e",
 	}
 	for col, h := range headers {

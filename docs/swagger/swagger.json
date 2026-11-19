@@ -1585,7 +1585,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Server langsung menghitung is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif).",
+                "description": "Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Format jawaban sesuai jenis soal: pg 1 huruf (mis. B), pgk satu atau lebih huruf (mis. AC), bs 3 karakter B/S untuk pernyataan 1-3 (mis. BSB). Server langsung menghitung skor \u0026 is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar), 0 (0-1 benar).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1605,7 +1605,7 @@
                         "required": true
                     },
                     {
-                        "description": "Pilihan jawaban (A-E)",
+                        "description": "Pilihan jawaban (pg: A-E, pgk: mis. AC, bs: mis. BSB)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -3975,19 +3975,19 @@
                     },
                     {
                         "type": "string",
-                        "description": "Teks opsi A",
+                        "description": "Teks opsi A (jenis bs: pernyataan 1)",
                         "name": "opsi_a",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Teks opsi B",
+                        "description": "Teks opsi B (jenis bs: pernyataan 2)",
                         "name": "opsi_b",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Teks opsi C",
+                        "description": "Teks opsi C (jenis bs: pernyataan 3)",
                         "name": "opsi_c",
                         "in": "formData"
                     },
@@ -4004,8 +4004,19 @@
                         "in": "formData"
                     },
                     {
+                        "enum": [
+                            "pg",
+                            "pgk",
+                            "bs"
+                        ],
                         "type": "string",
-                        "description": "Kunci jawaban benar, 1 huruf A-E",
+                        "description": "Jenis soal: pg (pilihan ganda, default), pgk (pilihan ganda kompleks), bs (benar/salah)",
+                        "name": "jenis",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kunci jawaban. pg: 1 huruf A-E; pgk: minimal 2 huruf A-E, mis. AC; bs: 3 karakter B/S sesuai urutan pernyataan opsi_a-c, mis. BSB",
                         "name": "kunci",
                         "in": "formData",
                         "required": true
@@ -4199,7 +4210,7 @@
         },
         "/soal/template": {
             "get": {
-                "description": "Menghasilkan file .xlsx kosong (hanya header) dengan urutan kolom yang sama persis dengan yang dibaca endpoint import (POST /soal/import) — no_soal, soal, opsi_a-e, kunci, lalu gambar_soal \u0026 gambar_a-e (kolom I dan K sengaja dikosongkan, jangan dihapus/disisipi supaya kolom lain tidak bergeser).",
+                "description": "Menghasilkan file .xlsx kosong (hanya header) dengan urutan kolom yang sama persis dengan yang dibaca endpoint import (POST /soal/import) — no_soal, soal, opsi_a-e, kunci, jenis (kolom I: pg/pgk/bs, kosong = pg), gambar_soal, lalu gambar_a-e (kolom K sengaja dikosongkan, jangan dihapus/disisipi supaya kolom lain tidak bergeser).",
                 "produces": [
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
@@ -4308,19 +4319,19 @@
                     },
                     {
                         "type": "string",
-                        "description": "Teks opsi A",
+                        "description": "Teks opsi A (jenis bs: pernyataan 1)",
                         "name": "opsi_a",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Teks opsi B",
+                        "description": "Teks opsi B (jenis bs: pernyataan 2)",
                         "name": "opsi_b",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Teks opsi C",
+                        "description": "Teks opsi C (jenis bs: pernyataan 3)",
                         "name": "opsi_c",
                         "in": "formData"
                     },
@@ -4337,8 +4348,19 @@
                         "in": "formData"
                     },
                     {
+                        "enum": [
+                            "pg",
+                            "pgk",
+                            "bs"
+                        ],
                         "type": "string",
-                        "description": "Kunci jawaban benar, 1 huruf A-E",
+                        "description": "Jenis soal: pg (pilihan ganda, default), pgk (pilihan ganda kompleks), bs (benar/salah)",
+                        "name": "jenis",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kunci jawaban. pg: 1 huruf A-E; pgk: minimal 2 huruf A-E, mis. AC; bs: 3 karakter B/S sesuai urutan pernyataan opsi_a-c, mis. BSB",
                         "name": "kunci",
                         "in": "formData",
                         "required": true
@@ -5330,13 +5352,7 @@
                 },
                 "jawaban": {
                     "type": "string",
-                    "enum": [
-                        "A",
-                        "B",
-                        "C",
-                        "D",
-                        "E"
-                    ]
+                    "maxLength": 10
                 },
                 "no_urut": {
                     "type": "integer"
@@ -5405,6 +5421,9 @@
                 "jawaban": {
                     "type": "string"
                 },
+                "jenis": {
+                    "type": "string"
+                },
                 "kunci": {
                     "type": "string"
                 },
@@ -5432,6 +5451,9 @@
                 "opsi_e": {
                     "type": "string"
                 },
+                "skor": {
+                    "type": "integer"
+                },
                 "soal": {
                     "type": "string"
                 },
@@ -5448,13 +5470,7 @@
             "properties": {
                 "jawaban": {
                     "type": "string",
-                    "enum": [
-                        "A",
-                        "B",
-                        "C",
-                        "D",
-                        "E"
-                    ]
+                    "maxLength": 10
                 }
             }
         },
@@ -6110,6 +6126,9 @@
                     "type": "string"
                 },
                 "id_bank_soal": {
+                    "type": "string"
+                },
+                "jenis": {
                     "type": "string"
                 },
                 "kunci": {

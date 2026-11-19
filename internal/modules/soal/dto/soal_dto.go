@@ -8,6 +8,7 @@ import (
 type CreateSoalRequest struct {
 	IdBankSoal  string                 `json:"id_bank_soal" form:"id_bank_soal" validate:"required"`
 	NoSoal      int                    `json:"no_soal" form:"no_soal"`
+	Jenis       string                 `json:"jenis" form:"jenis"`
 	Soal        string                 `json:"soal" form:"soal"`
 	GambarSoal  *multipart.FileHeader  `form:"gambar_soal"`
 	OpsiA       string                 `json:"opsi_a" form:"opsi_a"`
@@ -20,11 +21,12 @@ type CreateSoalRequest struct {
 	GambarC     *multipart.FileHeader  `form:"gambar_c"`
 	GambarD     *multipart.FileHeader  `form:"gambar_d"`
 	GambarE     *multipart.FileHeader  `form:"gambar_e"`
-	Kunci       string                 `json:"kunci" form:"kunci" validate:"required,len=1"`
+	Kunci       string                 `json:"kunci" form:"kunci" validate:"required,max=10"`
 }
 
 type UpdateSoalRequest struct {
 	NoSoal     int                    `json:"no_soal" form:"no_soal"`
+	Jenis      string                 `json:"jenis" form:"jenis"`
 	Soal       string                 `json:"soal" form:"soal"`
 	GambarSoal *multipart.FileHeader  `form:"gambar_soal"`
 	OpsiA      string                 `json:"opsi_a" form:"opsi_a"`
@@ -37,13 +39,14 @@ type UpdateSoalRequest struct {
 	GambarC    *multipart.FileHeader  `form:"gambar_c"`
 	GambarD    *multipart.FileHeader  `form:"gambar_d"`
 	GambarE    *multipart.FileHeader  `form:"gambar_e"`
-	Kunci      string                 `json:"kunci" form:"kunci" validate:"required,len=1"`
+	Kunci      string                 `json:"kunci" form:"kunci" validate:"required,max=10"`
 }
 
 type SoalResponse struct {
 	ID         string `json:"id"`
 	IdBankSoal string `json:"id_bank_soal"`
 	NoSoal     int    `json:"no_soal"`
+	Jenis      string `json:"jenis"`
 	Soal       string `json:"soal"`
 	GambarSoal string `json:"gambar_soal"`
 	OpsiA      string `json:"opsi_a"`

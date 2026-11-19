@@ -707,12 +707,14 @@ type analisisJawabanRow struct {
 	NoSoal      *int    `gorm:"column:no_soal"`
 	Jawaban     *string `gorm:"column:jawaban"`
 	IsBenar     *int    `gorm:"column:is_benar"`
+	Skor        *int    `gorm:"column:skor"`
 }
 
 // AnalisisSoalByJadwal membuat ZIP berisi satu .xlsx analisis per kelas: baris = peserta,
 // kolom = soal (diurutkan berdasarkan no_soal — bukan no_urut — supaya tetap sebanding
 // antar peserta walau acak_soal aktif dan urutan tampil tiap peserta berbeda-beda).
-// Cell diwarnai hijau (jawaban benar), merah (jawaban salah), atau kuning (belum dijawab).
+// Cell diwarnai hijau (jawaban benar), merah (jawaban salah), oranye (soal benar/salah yang
+// hanya benar sebagian, tetap dihitung di kolom Salah), atau kuning (belum dijawab).
 func (s *nilaiService) AnalisisSoalByJadwal(idJadwal string) (*ExportResult, error) {
 	// 1. Ambil nama_ujian & id_bank_soal dari jadwal
 	type jadwalMeta struct {
@@ -778,7 +780,8 @@ func (s *nilaiService) AnalisisSoalByJadwal(idJadwal string) (*ExportResult, err
 				peserta.nama AS nama_peserta,
 				soal.no_soal,
 				jawaban.jawaban,
-				jawaban.is_benar
+				jawaban.is_benar,
+				jawaban.skor
 			`).
 			Joins("LEFT JOIN nilai ON nilai.id_peserta = peserta.id AND nilai.id_jadwal = ? AND nilai.deleted_at IS NULL", idJadwal).
 			Joins("LEFT JOIN jawaban ON jawaban.id_nilai = nilai.id AND jawaban.deleted_at IS NULL").
@@ -825,6 +828,7 @@ func (s *nilaiService) AnalisisSoalByJadwal(idJadwal string) (*ExportResult, err
 type analisisAnswer struct {
 	Jawaban *string
 	IsBenar *int
+	Skor    *int
 }
 
 type analisisPesertaAgg struct {
@@ -850,7 +854,7 @@ func buildAnalisisSoalWorkbook(rows []analisisJawabanRow, noSoalList []int) (*ex
 		}
 		if r.NoSoal != nil {
 			a.Started = true
-			a.Answers[*r.NoSoal] = analisisAnswer{Jawaban: r.Jawaban, IsBenar: r.IsBenar}
+			a.Answers[*r.NoSoal] = analisisAnswer{Jawaban: r.Jawaban, IsBenar: r.IsBenar, Skor: r.Skor}
 		}
 	}
 
@@ -875,6 +879,13 @@ func buildAnalisisSoalWorkbook(rows []analisisJawabanRow, noSoalList []int) (*ex
 	yellowStyle, err := f.NewStyle(&excelize.Style{
 		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFEB9C"}, Pattern: 1},
 		Font: &excelize.Font{Color: "9C6500"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	orangeStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"F8CBAD"}, Pattern: 1},
+		Font: &excelize.Font{Color: "843C0C"},
 	})
 	if err != nil {
 		return nil, err
@@ -928,6 +939,10 @@ func buildAnalisisSoalWorkbook(rows []analisisJawabanRow, noSoalList []int) (*ex
 				f.SetCellStyle(sheet, cellName, cellName, greenStyle)
 				benar++
 				benarPerSoal[j]++
+			} else if ans.Skor != nil && *ans.Skor > 0 {
+				// Benar sebagian (soal benar/salah dengan 2 dari 3 pernyataan benar)
+				f.SetCellStyle(sheet, cellName, cellName, orangeStyle)
+				salah++
 			} else {
 				f.SetCellStyle(sheet, cellName, cellName, redStyle)
 				salah++

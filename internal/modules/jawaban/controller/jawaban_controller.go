@@ -179,13 +179,13 @@ func (c *JawabanController) GetJawabanByPeserta(ctx *fiber.Ctx) error {
 
 // UpdateJawaban godoc
 // @Summary Submit/update jawaban satu soal
-// @Description Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Server langsung menghitung is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif).
+// @Description Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Format jawaban sesuai jenis soal: pg 1 huruf (mis. B), pgk satu atau lebih huruf (mis. AC), bs 3 karakter B/S untuk pernyataan 1-3 (mis. BSB). Server langsung menghitung skor & is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar), 0 (0-1 benar).
 // @Tags Jawaban
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "ID jawaban (uuid)"
-// @Param request body dto.UpdateJawabanRequest true "Pilihan jawaban (A-E)"
+// @Param request body dto.UpdateJawabanRequest true "Pilihan jawaban (pg: A-E, pgk: mis. AC, bs: mis. BSB)"
 // @Success 200 {object} helpers.Response{data=dto.JawabanResponse} "Update jawaban successfully"
 // @Failure 400 {object} helpers.Response "Validasi gagal"
 // @Router /jawaban/{id} [put]

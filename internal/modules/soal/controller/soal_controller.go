@@ -31,12 +31,13 @@ func NewSoalController(service service.SoalService, jadwalRepo jadwalrepo.Jadwal
 // @Param id_bank_soal formData string true "ID bank soal (uuid)"
 // @Param no_soal formData int false "Nomor urut soal dalam bank soal"
 // @Param soal formData string false "Teks soal (bisa HTML)"
-// @Param opsi_a formData string false "Teks opsi A"
-// @Param opsi_b formData string false "Teks opsi B"
-// @Param opsi_c formData string false "Teks opsi C"
+// @Param opsi_a formData string false "Teks opsi A (jenis bs: pernyataan 1)"
+// @Param opsi_b formData string false "Teks opsi B (jenis bs: pernyataan 2)"
+// @Param opsi_c formData string false "Teks opsi C (jenis bs: pernyataan 3)"
 // @Param opsi_d formData string false "Teks opsi D"
 // @Param opsi_e formData string false "Teks opsi E"
-// @Param kunci formData string true "Kunci jawaban benar, 1 huruf A-E"
+// @Param jenis formData string false "Jenis soal: pg (pilihan ganda, default), pgk (pilihan ganda kompleks), bs (benar/salah)" Enums(pg, pgk, bs)
+// @Param kunci formData string true "Kunci jawaban. pg: 1 huruf A-E; pgk: minimal 2 huruf A-E, mis. AC; bs: 3 karakter B/S sesuai urutan pernyataan opsi_a-c, mis. BSB"
 // @Param gambar_soal formData file false "Gambar untuk soal"
 // @Param gambar_a formData file false "Gambar untuk opsi A"
 // @Param gambar_b formData file false "Gambar untuk opsi B"
@@ -57,6 +58,7 @@ func (c *SoalController) CreateSoal(ctx *fiber.Ctx) error {
 	req.OpsiD = ctx.FormValue("opsi_d")
 	req.OpsiE = ctx.FormValue("opsi_e")
 	req.Kunci = ctx.FormValue("kunci")
+	req.Jenis = ctx.FormValue("jenis")
 
 	noSoalStr := ctx.FormValue("no_soal")
 	if noSoal, err := strconv.Atoi(noSoalStr); err == nil {
@@ -193,12 +195,13 @@ func (c *SoalController) GetSoalByBankSoal(ctx *fiber.Ctx) error {
 // @Param id path string true "ID soal (uuid)"
 // @Param no_soal formData int false "Nomor urut soal dalam bank soal"
 // @Param soal formData string false "Teks soal (bisa HTML)"
-// @Param opsi_a formData string false "Teks opsi A"
-// @Param opsi_b formData string false "Teks opsi B"
-// @Param opsi_c formData string false "Teks opsi C"
+// @Param opsi_a formData string false "Teks opsi A (jenis bs: pernyataan 1)"
+// @Param opsi_b formData string false "Teks opsi B (jenis bs: pernyataan 2)"
+// @Param opsi_c formData string false "Teks opsi C (jenis bs: pernyataan 3)"
 // @Param opsi_d formData string false "Teks opsi D"
 // @Param opsi_e formData string false "Teks opsi E"
-// @Param kunci formData string true "Kunci jawaban benar, 1 huruf A-E"
+// @Param jenis formData string false "Jenis soal: pg (pilihan ganda, default), pgk (pilihan ganda kompleks), bs (benar/salah)" Enums(pg, pgk, bs)
+// @Param kunci formData string true "Kunci jawaban. pg: 1 huruf A-E; pgk: minimal 2 huruf A-E, mis. AC; bs: 3 karakter B/S sesuai urutan pernyataan opsi_a-c, mis. BSB"
 // @Param gambar_soal formData file false "Gambar untuk soal"
 // @Param gambar_a formData file false "Gambar untuk opsi A"
 // @Param gambar_b formData file false "Gambar untuk opsi B"
@@ -219,6 +222,7 @@ func (c *SoalController) UpdateSoal(ctx *fiber.Ctx) error {
 	req.OpsiD = ctx.FormValue("opsi_d")
 	req.OpsiE = ctx.FormValue("opsi_e")
 	req.Kunci = ctx.FormValue("kunci")
+	req.Jenis = ctx.FormValue("jenis")
 
 	noSoalStr := ctx.FormValue("no_soal")
 	if noSoal, err := strconv.Atoi(noSoalStr); err == nil {
@@ -354,7 +358,7 @@ func (c *SoalController) ImportSoalFromExcel(ctx *fiber.Ctx) error {
 
 // DownloadTemplate godoc
 // @Summary Download template Excel untuk import soal
-// @Description Menghasilkan file .xlsx kosong (hanya header) dengan urutan kolom yang sama persis dengan yang dibaca endpoint import (POST /soal/import) — no_soal, soal, opsi_a-e, kunci, lalu gambar_soal & gambar_a-e (kolom I dan K sengaja dikosongkan, jangan dihapus/disisipi supaya kolom lain tidak bergeser).
+// @Description Menghasilkan file .xlsx kosong (hanya header) dengan urutan kolom yang sama persis dengan yang dibaca endpoint import (POST /soal/import) — no_soal, soal, opsi_a-e, kunci, jenis (kolom I: pg/pgk/bs, kosong = pg), gambar_soal, lalu gambar_a-e (kolom K sengaja dikosongkan, jangan dihapus/disisipi supaya kolom lain tidak bergeser).
 // @Tags Soal
 // @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 // @Success 200 {file} file "File template_import_soal.xlsx"

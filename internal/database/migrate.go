@@ -37,6 +37,10 @@ func RunMigrations(db *gorm.DB) error {
 	db.Exec("ALTER TABLE jadwal ALTER COLUMN acak_soal TYPE smallint USING acak_soal::int::smallint")
 	db.Exec("ALTER TABLE jadwal ALTER COLUMN acak_opsi TYPE smallint USING acak_opsi::int::smallint")
 
+	// Perlebar kunci & jawaban untuk jenis soal pgk (mis. "ACD") dan bs (mis. "BSB")
+	db.Exec("ALTER TABLE soal ALTER COLUMN kunci TYPE varchar(5)")
+	db.Exec("ALTER TABLE jawaban ALTER COLUMN jawaban TYPE varchar(5)")
+
 	if err := db.AutoMigrate(
 		&usermodel.User{},
 		&mapelmodel.Mapel{},
@@ -53,6 +57,9 @@ func RunMigrations(db *gorm.DB) error {
 	); err != nil {
 		return err
 	}
+
+	// Soal lama (sebelum ada kolom jenis) dianggap pilihan ganda biasa
+	db.Exec("UPDATE soal SET jenis = 'pg' WHERE jenis IS NULL OR jenis = ''")
 
 	// Buat unique constraint untuk mencegah duplikasi assignment kelas ke jadwal
 	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jadwal_kelas_unique ON jadwal_kelas(id_jadwal, id_kelas)")
