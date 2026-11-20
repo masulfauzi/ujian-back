@@ -23,13 +23,13 @@ func SetupJawabanRoutes(app *fiber.App, db *gorm.DB) {
 	jawaban := api.Group("/jawaban")
 
 	// Dua-segmen path: aman dari konflik dengan /:id (beda kedalaman)
-	jawaban.Get("/nilai/:id_nilai", ctrl.GetJawabanByNilai)
-	jawaban.Get("/nilai/:id_nilai/section/:id_section", ctrl.GetJawabanByNilaiSection)
-	jawaban.Get("/peserta/:id_peserta", ctrl.GetJawabanByPeserta)
+	jawaban.Get("/nilai/:id_nilai", middleware.JWTOptional(), ctrl.GetJawabanByNilai)
+	jawaban.Get("/nilai/:id_nilai/section/:id_section", middleware.JWTOptional(), ctrl.GetJawabanByNilaiSection)
+	jawaban.Get("/peserta/:id_peserta", middleware.JWTOptional(), ctrl.GetJawabanByPeserta)
 
 	jawaban.Post("/", middleware.JWTAuth(), ctrl.CreateJawaban)
-	jawaban.Get("/", ctrl.GetAllJawaban)
-	jawaban.Get("/:id", ctrl.GetJawabanByID)
+	jawaban.Get("/", middleware.JWTOptional(), ctrl.GetAllJawaban)
+	jawaban.Get("/:id", middleware.JWTOptional(), ctrl.GetJawabanByID)
 	jawaban.Put("/:id", middleware.JWTAuth(), ctrl.UpdateJawaban)
 	jawaban.Delete("/:id", middleware.JWTAuth(), ctrl.DeleteJawaban)
 	jawaban.Patch("/:id/restore", middleware.JWTAuth(), ctrl.RestoreJawaban)

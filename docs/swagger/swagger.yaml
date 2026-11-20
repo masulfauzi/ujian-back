@@ -1714,6 +1714,11 @@ paths:
       - Jadwal
   /jawaban:
     get:
+      description: Tanpa token atau dengan token peserta, soal dari section yang belum
+        terbuka (sesi ber-section yang belum selesai) tidak ikut dikembalikan. Token
+        admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar,
+        dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai
+        + durasi).
       parameters:
       - default: 1
         description: Halaman
@@ -1761,7 +1766,10 @@ paths:
       - application/json
       description: Pada flow normal, baris jawaban kosong sudah dibuat otomatis saat
         peserta mulai ujian (lihat /nilai/mulai-ujian). Endpoint ini untuk kasus insert
-        manual.
+        manual. Ditolak 403 jika no_urut berada di section yang belum terbuka (sesi
+        ber-section yang belum selesai). Untuk peserta (atau tanpa token), field kunci,
+        is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai
+        + durasi).
       parameters:
       - description: Data jawaban
         in: body
@@ -1783,6 +1791,10 @@ paths:
               type: object
         "400":
           description: Validasi gagal atau data sudah ada
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Soal berada di section yang belum terbuka
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
       security:
@@ -1815,6 +1827,10 @@ paths:
       tags:
       - Jawaban
     get:
+      description: Tanpa token atau dengan token peserta, jawaban untuk soal di section
+        yang belum terbuka dianggap tidak ditemukan (404). Untuk peserta (atau tanpa
+        token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan
+        jadwal berakhir (wkt_selesai + durasi).
       parameters:
       - description: ID jawaban (uuid)
         in: path
@@ -1849,7 +1865,10 @@ paths:
         (mis. BSB). Server langsung menghitung skor & is_benar dengan membandingkan
         ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan
         bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar),
-        0 (0-1 benar).'
+        0 (0-1 benar). Ditolak 403 jika soal berada di section yang belum terbuka
+        (sesi ber-section yang belum selesai). Untuk peserta (atau tanpa token), field
+        kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir
+        (wkt_selesai + durasi).'
       parameters:
       - description: ID jawaban (uuid)
         in: path
@@ -1876,6 +1895,10 @@ paths:
               type: object
         "400":
           description: Validasi gagal
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Soal berada di section yang belum terbuka
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
       security:
@@ -1915,7 +1938,11 @@ paths:
         — untuk urutan tampil yang benar (terutama jika acak_soal aktif), frontend
         harus re-sort berdasarkan field no_urut. Untuk ujian yang memakai section,
         gunakan endpoint /jawaban/nilai/{id_nilai}/section/{id_section} agar hanya
-        soal dalam section yang sedang aktif yang dikirim.
+        soal dalam section yang sedang aktif yang dikirim. Tanpa token atau dengan
+        token peserta, endpoint ini hanya mengembalikan soal dari section yang sudah
+        terbuka selama sesi belum selesai; token admin/guru melihat semua. Untuk peserta
+        (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi
+        selesai dan jadwal berakhir (wkt_selesai + durasi).
       parameters:
       - description: ID nilai/sesi ujian (uuid)
         in: path
@@ -1950,7 +1977,9 @@ paths:
         lebih besar dari section aktif (frontier) sesi ini — mencegah peserta mengambil
         soal section berikutnya sebelum waktu minimal section saat ini terlampaui,
         walau memanggil API secara langsung. Section yang sudah pernah dibuka (urutan
-        <= frontier) selalu bisa diakses ulang.
+        <= frontier) selalu bisa diakses ulang. Untuk peserta (atau tanpa token),
+        field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal
+        berakhir (wkt_selesai + durasi).
       parameters:
       - description: ID nilai/sesi ujian (uuid)
         in: path
@@ -1989,6 +2018,11 @@ paths:
       - Jawaban
   /jawaban/peserta/{id_peserta}:
     get:
+      description: Tanpa token atau dengan token peserta, soal dari section yang belum
+        terbuka (sesi ber-section yang belum selesai) tidak ikut dikembalikan. Token
+        admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar,
+        dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai
+        + durasi).
       parameters:
       - description: ID peserta (uuid)
         in: path
@@ -3368,6 +3402,7 @@ paths:
       - Section
   /soal:
     get:
+      description: Hanya admin/guru (berisi kunci jawaban). Peserta mendapat 403.
       parameters:
       - default: 1
         description: Halaman
@@ -3391,10 +3426,20 @@ paths:
                 data:
                   $ref: '#/definitions/backend_internal_modules_soal_dto.SoalListResponse'
               type: object
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin/guru
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
         "500":
           description: Gagal mengambil data
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
+      security:
+      - BearerAuth: []
       summary: List semua soal
       tags:
       - Soal
@@ -3524,7 +3569,8 @@ paths:
     get:
       description: Jika request memakai JWT milik peserta yang sedang mengerjakan
         jadwal dengan acak_opsi aktif, urutan opsi jawaban akan otomatis diacak secara
-        konsisten untuk peserta tersebut.
+        konsisten untuk peserta tersebut. Field kunci dikosongkan untuk peserta atau
+        request tanpa token; hanya admin/guru yang menerima kunci.
       parameters:
       - description: ID soal (uuid)
         in: path
@@ -3675,6 +3721,7 @@ paths:
       - Soal
   /soal/bank/{bank_soal_id}:
     get:
+      description: Hanya admin/guru (berisi kunci jawaban). Peserta mendapat 403.
       parameters:
       - description: ID bank soal (uuid)
         in: path
@@ -3703,10 +3750,20 @@ paths:
                 data:
                   $ref: '#/definitions/backend_internal_modules_soal_dto.SoalListResponse'
               type: object
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin/guru
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
         "500":
           description: Gagal mengambil data
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
+      security:
+      - BearerAuth: []
       summary: List soal dalam satu bank soal
       tags:
       - Soal

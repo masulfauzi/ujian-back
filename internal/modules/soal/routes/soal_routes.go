@@ -20,9 +20,9 @@ func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 	api := app.Group("/api")
 	soal := api.Group("/soal")
 
-	// Public endpoints (GET)
-	soal.Get("/", ctrl.GetAllSoal)
-	soal.Get("/bank/:bank_soal_id", ctrl.GetSoalByBankSoal)
+	// List soal berisi kunci: hanya admin/guru
+	soal.Get("/", middleware.JWTAuth(), middleware.StaffOnly(), ctrl.GetAllSoal)
+	soal.Get("/bank/:bank_soal_id", middleware.JWTAuth(), middleware.StaffOnly(), ctrl.GetSoalByBankSoal)
 
 	// Protected endpoints (write operations)
 	soal.Post("/", middleware.JWTAuth(), ctrl.CreateSoal)
@@ -32,7 +32,8 @@ func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 	soal.Delete("/:id", middleware.JWTAuth(), ctrl.DeleteSoal)
 	soal.Patch("/:id/restore", middleware.JWTAuth(), ctrl.RestoreSoal)
 
-	// Public endpoint (GET) - dynamic route at the end
-	// JWTOptional: jika ada token, user_id dipakai sebagai seed randomisasi opsi
+	// Public endpoint (GET) - dynamic route at the end. Dipakai halaman ujian untuk gambar_soal.
+	// JWTOptional: jika ada token, user_id dipakai sebagai seed randomisasi opsi; kunci dikosongkan
+	// untuk peserta atau request tanpa token.
 	soal.Get("/:id", middleware.JWTOptional(), ctrl.GetSoalByID)
 }

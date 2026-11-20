@@ -24,13 +24,16 @@ import (
 var ErrSectionBelumTerbuka = errors.New("section ini belum terbuka")
 
 type JawabanService interface {
-	CreateJawaban(req *dto.CreateJawabanRequest) (*dto.JawabanResponse, error)
-	GetJawabanByID(id string) (*dto.JawabanResponse, error)
-	GetAllJawaban(page, pageSize int, idNilai, idPeserta, idSoal string) (*dto.JawabanListResponse, error)
-	GetJawabanByNilai(idNilai string) ([]dto.JawabanResponse, error)
-	GetJawabanByNilaiSection(idNilai, idSection string) ([]dto.JawabanResponse, error)
-	GetJawabanByPeserta(idPeserta string, page, pageSize int) (*dto.JawabanListResponse, error)
-	UpdateJawaban(id string, req *dto.UpdateJawabanRequest) (*dto.JawabanResponse, error)
+	CreateJawaban(req *dto.CreateJawabanRequest, terbatas bool) (*dto.JawabanResponse, error)
+	// Parameter terbatas = true dipakai untuk peserta / akses tanpa token: kunci, is_benar, dan skor
+	// dikosongkan sampai sesi selesai dan jadwal berakhir; (untuk GET) soal dari section yang belum
+	// terbuka disembunyikan selama sesi belum selesai.
+	GetJawabanByID(id string, terbatas bool) (*dto.JawabanResponse, error)
+	GetAllJawaban(page, pageSize int, idNilai, idPeserta, idSoal string, terbatas bool) (*dto.JawabanListResponse, error)
+	GetJawabanByNilai(idNilai string, terbatas bool) ([]dto.JawabanResponse, error)
+	GetJawabanByNilaiSection(idNilai, idSection string, terbatas bool) ([]dto.JawabanResponse, error)
+	GetJawabanByPeserta(idPeserta string, page, pageSize int, terbatas bool) (*dto.JawabanListResponse, error)
+	UpdateJawaban(id string, req *dto.UpdateJawabanRequest, terbatas bool) (*dto.JawabanResponse, error)
 	DeleteJawaban(id string) error
 	RestoreJawaban(id string) error
 }
@@ -43,6 +46,37 @@ type jawabanService struct {
 
 func NewJawabanService(repo repository.JawabanRepository, nilaiRepo nilairepo.NilaiRepository, sectionRepo sectionrepo.SectionRepository) JawabanService {
 	return &jawabanService{repo: repo, nilaiRepo: nilaiRepo, sectionRepo: sectionRepo}
+}
+
+func (s *jawabanService) readRepo(terbatas bool) repository.JawabanRepository {
+	if terbatas {
+		return s.repo.WithSectionFilter()
+	}
+	return s.repo
+}
+
+// cekSectionTerbuka menolak (ErrSectionBelumTerbuka) jawaban untuk soal yang no_urut-nya berada
+// di section setelah frontier sesi ini. Sesi tanpa section atau yang sudah selesai tidak dibatasi.
+func (s *jawabanService) cekSectionTerbuka(idNilai string, noUrut int) error {
+	nilai, err := s.nilaiRepo.GetByID(idNilai)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("sesi ujian tidak ditemukan")
+		}
+		return err
+	}
+	if nilai.IDSectionAktif == nil || nilai.WktSelesai != nil {
+		return nil
+	}
+
+	active, err := s.sectionRepo.GetByID(*nilai.IDSectionAktif)
+	if err != nil {
+		return err
+	}
+	if noUrut > active.NoUrutAkhir {
+		return ErrSectionBelumTerbuka
+	}
+	return nil
 }
 
 // generateOpsiOrder menghasilkan urutan acak yang sama dengan soal service.
@@ -114,13 +148,17 @@ func randomizeOpsi(detail *repository.JawabanWithDetail) (opsiA, opsiB, opsiC, o
 		newKunci
 }
 
-func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest) (*dto.JawabanResponse, error) {
+func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest, terbatas bool) (*dto.JawabanResponse, error) {
 	exists, err := s.repo.CheckDuplicate(req.IDNilai, req.IDSoal)
 	if err != nil {
 		return nil, err
 	}
 	if exists {
 		return nil, errors.New("jawaban untuk soal ini di attempt tersebut sudah ada — gunakan endpoint update")
+	}
+
+	if err := s.cekSectionTerbuka(req.IDNilai, req.NoUrut); err != nil {
+		return nil, err
 	}
 
 	jawaban, skor, isBenarInt, err := s.evaluasiJawaban(req.IDSoal, req.IDNilai, req.IDPeserta, req.Jawaban)
@@ -146,21 +184,21 @@ func (s *jawabanService) CreateJawaban(req *dto.CreateJawabanRequest) (*dto.Jawa
 	if err != nil {
 		return nil, err
 	}
-	return detailToResponse(created), nil
+	return detailToResponse(created, terbatas), nil
 }
 
-func (s *jawabanService) GetJawabanByID(id string) (*dto.JawabanResponse, error) {
-	result, err := s.repo.GetByIDWithDetail(id)
+func (s *jawabanService) GetJawabanByID(id string, terbatas bool) (*dto.JawabanResponse, error) {
+	result, err := s.readRepo(terbatas).GetByIDWithDetail(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New(constants.ErrNotFound)
 		}
 		return nil, err
 	}
-	return detailToResponse(result), nil
+	return detailToResponse(result, terbatas), nil
 }
 
-func (s *jawabanService) GetAllJawaban(page, pageSize int, idNilai, idPeserta, idSoal string) (*dto.JawabanListResponse, error) {
+func (s *jawabanService) GetAllJawaban(page, pageSize int, idNilai, idPeserta, idSoal string, terbatas bool) (*dto.JawabanListResponse, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -168,14 +206,14 @@ func (s *jawabanService) GetAllJawaban(page, pageSize int, idNilai, idPeserta, i
 		pageSize = 10
 	}
 
-	results, total, err := s.repo.GetAllWithDetail(page, pageSize, idNilai, idPeserta, idSoal)
+	results, total, err := s.readRepo(terbatas).GetAllWithDetail(page, pageSize, idNilai, idPeserta, idSoal)
 	if err != nil {
 		return nil, err
 	}
 
 	responses := []dto.JawabanResponse{}
 	for _, r := range results {
-		responses = append(responses, *detailToResponse(&r))
+		responses = append(responses, *detailToResponse(&r, terbatas))
 	}
 
 	totalPage := int(math.Ceil(float64(total) / float64(pageSize)))
@@ -189,8 +227,8 @@ func (s *jawabanService) GetAllJawaban(page, pageSize int, idNilai, idPeserta, i
 	}, nil
 }
 
-func (s *jawabanService) GetJawabanByNilai(idNilai string) ([]dto.JawabanResponse, error) {
-	resp, err := s.GetAllJawaban(1, 99999, idNilai, "", "")
+func (s *jawabanService) GetJawabanByNilai(idNilai string, terbatas bool) ([]dto.JawabanResponse, error) {
+	resp, err := s.GetAllJawaban(1, 99999, idNilai, "", "", terbatas)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +238,7 @@ func (s *jawabanService) GetJawabanByNilai(idNilai string) ([]dto.JawabanRespons
 // GetJawabanByNilaiSection mengambil soal satu sesi ujian yang berada dalam satu section.
 // Section dengan urutan di atas frontier (nilai.IDSectionAktif) ditolak dengan ErrSectionBelumTerbuka,
 // supaya siswa tidak bisa melihat soal section berikutnya sebelum waktu minimal terlampaui.
-func (s *jawabanService) GetJawabanByNilaiSection(idNilai, idSection string) ([]dto.JawabanResponse, error) {
+func (s *jawabanService) GetJawabanByNilaiSection(idNilai, idSection string, terbatas bool) ([]dto.JawabanResponse, error) {
 	section, err := s.sectionRepo.GetByID(idSection)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -238,21 +276,25 @@ func (s *jawabanService) GetJawabanByNilaiSection(idNilai, idSection string) ([]
 
 	responses := make([]dto.JawabanResponse, len(results))
 	for i, r := range results {
-		responses[i] = *detailToResponse(&r)
+		responses[i] = *detailToResponse(&r, terbatas)
 	}
 	return responses, nil
 }
 
-func (s *jawabanService) GetJawabanByPeserta(idPeserta string, page, pageSize int) (*dto.JawabanListResponse, error) {
-	return s.GetAllJawaban(page, pageSize, "", idPeserta, "")
+func (s *jawabanService) GetJawabanByPeserta(idPeserta string, page, pageSize int, terbatas bool) (*dto.JawabanListResponse, error) {
+	return s.GetAllJawaban(page, pageSize, "", idPeserta, "", terbatas)
 }
 
-func (s *jawabanService) UpdateJawaban(id string, req *dto.UpdateJawabanRequest) (*dto.JawabanResponse, error) {
+func (s *jawabanService) UpdateJawaban(id string, req *dto.UpdateJawabanRequest, terbatas bool) (*dto.JawabanResponse, error) {
 	existing, err := s.repo.GetByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New(constants.ErrNotFound)
 		}
+		return nil, err
+	}
+
+	if err := s.cekSectionTerbuka(existing.IDNilai, existing.NoUrut); err != nil {
 		return nil, err
 	}
 
@@ -273,7 +315,7 @@ func (s *jawabanService) UpdateJawaban(id string, req *dto.UpdateJawabanRequest)
 	if err != nil {
 		return nil, err
 	}
-	return detailToResponse(updated), nil
+	return detailToResponse(updated, terbatas), nil
 }
 
 func (s *jawabanService) DeleteJawaban(id string) error {
@@ -291,7 +333,10 @@ func (s *jawabanService) RestoreJawaban(id string) error {
 	return s.repo.Restore(id)
 }
 
-func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
+// detailToResponse membentuk response jawaban. Jika terbatas, kunci, is_benar, dan skor dikosongkan
+// sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi), supaya peserta tidak bisa melihat,
+// menebak, atau membagikan kunci ke peserta lain yang masih mengerjakan.
+func detailToResponse(r *repository.JawabanWithDetail, terbatas bool) *dto.JawabanResponse {
 	opsiA, opsiB, opsiC, opsiD, opsiE := r.OpsiA, r.OpsiB, r.OpsiC, r.OpsiD, r.OpsiE
 	gambarA, gambarB, gambarC, gambarD, gambarE := r.GambarA, r.GambarB, r.GambarC, r.GambarD, r.GambarE
 	kunci := r.Kunci
@@ -303,7 +348,7 @@ func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
 			kunci = randomizeOpsi(r)
 	}
 
-	return &dto.JawabanResponse{
+	resp := &dto.JawabanResponse{
 		ID:          r.ID,
 		IDNilai:     r.IDNilai,
 		IDSoal:      r.IDSoal,
@@ -330,4 +375,11 @@ func detailToResponse(r *repository.JawabanWithDetail) *dto.JawabanResponse {
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}
+
+	if terbatas && !r.KunciBolehTampil {
+		resp.Kunci = ""
+		resp.IsBenar = nil
+		resp.Skor = nil
+	}
+	return resp
 }

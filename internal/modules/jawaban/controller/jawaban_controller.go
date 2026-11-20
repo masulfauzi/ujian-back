@@ -19,9 +19,26 @@ func NewJawabanController(service service.JawabanService) *JawabanController {
 	return &JawabanController{service: service}
 }
 
+// aksesTerbatas bernilai true untuk peserta atau request tanpa token valid: kunci/is_benar/skor
+// dikosongkan sampai jadwal berakhir dan soal dari section yang belum terbuka disembunyikan.
+// Admin/guru (role selain peserta) melihat semua. Membaca ctx.Locals("role") yang diisi
+// middleware.JWTAuth / middleware.JWTOptional.
+func aksesTerbatas(ctx *fiber.Ctx) bool {
+	role, _ := ctx.Locals("role").(string)
+	return role == "" || role == "peserta"
+}
+
+// errorJawabanTulis memetakan error simpan jawaban: section belum terbuka -> 403, lainnya -> 400.
+func errorJawabanTulis(ctx *fiber.Ctx, err error) error {
+	if errors.Is(err, service.ErrSectionBelumTerbuka) {
+		return helpers.ErrorResponse(ctx, fiber.StatusForbidden, err.Error(), nil)
+	}
+	return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+}
+
 // CreateJawaban godoc
 // @Summary Buat baris jawaban secara manual
-// @Description Pada flow normal, baris jawaban kosong sudah dibuat otomatis saat peserta mulai ujian (lihat /nilai/mulai-ujian). Endpoint ini untuk kasus insert manual.
+// @Description Pada flow normal, baris jawaban kosong sudah dibuat otomatis saat peserta mulai ujian (lihat /nilai/mulai-ujian). Endpoint ini untuk kasus insert manual. Ditolak 403 jika no_urut berada di section yang belum terbuka (sesi ber-section yang belum selesai). Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Accept json
 // @Produce json
@@ -29,6 +46,7 @@ func NewJawabanController(service service.JawabanService) *JawabanController {
 // @Param request body dto.CreateJawabanRequest true "Data jawaban"
 // @Success 201 {object} helpers.Response{data=dto.JawabanResponse} "Create jawaban successfully"
 // @Failure 400 {object} helpers.Response "Validasi gagal atau data sudah ada"
+// @Failure 403 {object} helpers.Response "Soal berada di section yang belum terbuka"
 // @Router /jawaban [post]
 func (c *JawabanController) CreateJawaban(ctx *fiber.Ctx) error {
 	var req dto.CreateJawabanRequest
@@ -36,9 +54,9 @@ func (c *JawabanController) CreateJawaban(ctx *fiber.Ctx) error {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Invalid request format", nil)
 	}
 
-	resp, err := c.service.CreateJawaban(&req)
+	resp, err := c.service.CreateJawaban(&req, aksesTerbatas(ctx))
 	if err != nil {
-		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		return errorJawabanTulis(ctx, err)
 	}
 
 	return helpers.SuccessResponse(ctx, fiber.StatusCreated, "Create jawaban successfully", resp)
@@ -46,6 +64,7 @@ func (c *JawabanController) CreateJawaban(ctx *fiber.Ctx) error {
 
 // GetAllJawaban godoc
 // @Summary List semua jawaban
+// @Description Tanpa token atau dengan token peserta, soal dari section yang belum terbuka (sesi ber-section yang belum selesai) tidak ikut dikembalikan. Token admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Produce json
 // @Param page query int false "Halaman" default(1)
@@ -72,7 +91,7 @@ func (c *JawabanController) GetAllJawaban(ctx *fiber.Ctx) error {
 		pageSizeNum = 10
 	}
 
-	resp, err := c.service.GetAllJawaban(pageNum, pageSizeNum, idNilai, idPeserta, idSoal)
+	resp, err := c.service.GetAllJawaban(pageNum, pageSizeNum, idNilai, idPeserta, idSoal, aksesTerbatas(ctx))
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusInternalServerError, err.Error(), nil)
 	}
@@ -82,6 +101,7 @@ func (c *JawabanController) GetAllJawaban(ctx *fiber.Ctx) error {
 
 // GetJawabanByID godoc
 // @Summary Detail satu jawaban
+// @Description Tanpa token atau dengan token peserta, jawaban untuk soal di section yang belum terbuka dianggap tidak ditemukan (404). Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Produce json
 // @Param id path string true "ID jawaban (uuid)"
@@ -91,7 +111,7 @@ func (c *JawabanController) GetAllJawaban(ctx *fiber.Ctx) error {
 func (c *JawabanController) GetJawabanByID(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 
-	resp, err := c.service.GetJawabanByID(id)
+	resp, err := c.service.GetJawabanByID(id, aksesTerbatas(ctx))
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusNotFound, err.Error(), nil)
 	}
@@ -101,7 +121,7 @@ func (c *JawabanController) GetJawabanByID(ctx *fiber.Ctx) error {
 
 // GetJawabanByNilai godoc
 // @Summary List semua soal & jawaban dalam satu sesi ujian
-// @Description Dipanggil setelah mulai-ujian untuk mengambil seluruh soal (via baris jawaban) dalam satu sesi. Opsi jawaban otomatis diacak per-peserta jika acak_opsi aktif pada jadwal. Hasil terurut berdasarkan no_soal di database — untuk urutan tampil yang benar (terutama jika acak_soal aktif), frontend harus re-sort berdasarkan field no_urut. Untuk ujian yang memakai section, gunakan endpoint /jawaban/nilai/{id_nilai}/section/{id_section} agar hanya soal dalam section yang sedang aktif yang dikirim.
+// @Description Dipanggil setelah mulai-ujian untuk mengambil seluruh soal (via baris jawaban) dalam satu sesi. Opsi jawaban otomatis diacak per-peserta jika acak_opsi aktif pada jadwal. Hasil terurut berdasarkan no_soal di database — untuk urutan tampil yang benar (terutama jika acak_soal aktif), frontend harus re-sort berdasarkan field no_urut. Untuk ujian yang memakai section, gunakan endpoint /jawaban/nilai/{id_nilai}/section/{id_section} agar hanya soal dalam section yang sedang aktif yang dikirim. Tanpa token atau dengan token peserta, endpoint ini hanya mengembalikan soal dari section yang sudah terbuka selama sesi belum selesai; token admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Produce json
 // @Param id_nilai path string true "ID nilai/sesi ujian (uuid)"
@@ -111,7 +131,7 @@ func (c *JawabanController) GetJawabanByID(ctx *fiber.Ctx) error {
 func (c *JawabanController) GetJawabanByNilai(ctx *fiber.Ctx) error {
 	idNilai := ctx.Params("id_nilai")
 
-	resp, err := c.service.GetJawabanByNilai(idNilai)
+	resp, err := c.service.GetJawabanByNilai(idNilai, aksesTerbatas(ctx))
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusInternalServerError, err.Error(), nil)
 	}
@@ -121,7 +141,7 @@ func (c *JawabanController) GetJawabanByNilai(ctx *fiber.Ctx) error {
 
 // GetJawabanByNilaiSection godoc
 // @Summary List soal & jawaban dalam satu section
-// @Description Mengambil hanya soal yang termasuk dalam satu section tertentu pada sesi ujian ini. Ditolak dengan 403 jika section yang diminta urutannya lebih besar dari section aktif (frontier) sesi ini — mencegah peserta mengambil soal section berikutnya sebelum waktu minimal section saat ini terlampaui, walau memanggil API secara langsung. Section yang sudah pernah dibuka (urutan <= frontier) selalu bisa diakses ulang.
+// @Description Mengambil hanya soal yang termasuk dalam satu section tertentu pada sesi ujian ini. Ditolak dengan 403 jika section yang diminta urutannya lebih besar dari section aktif (frontier) sesi ini — mencegah peserta mengambil soal section berikutnya sebelum waktu minimal section saat ini terlampaui, walau memanggil API secara langsung. Section yang sudah pernah dibuka (urutan <= frontier) selalu bisa diakses ulang. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Produce json
 // @Param id_nilai path string true "ID nilai/sesi ujian (uuid)"
@@ -134,7 +154,7 @@ func (c *JawabanController) GetJawabanByNilaiSection(ctx *fiber.Ctx) error {
 	idNilai := ctx.Params("id_nilai")
 	idSection := ctx.Params("id_section")
 
-	resp, err := c.service.GetJawabanByNilaiSection(idNilai, idSection)
+	resp, err := c.service.GetJawabanByNilaiSection(idNilai, idSection, aksesTerbatas(ctx))
 	if err != nil {
 		if errors.Is(err, service.ErrSectionBelumTerbuka) {
 			return helpers.ErrorResponse(ctx, fiber.StatusForbidden, err.Error(), nil)
@@ -147,6 +167,7 @@ func (c *JawabanController) GetJawabanByNilaiSection(ctx *fiber.Ctx) error {
 
 // GetJawabanByPeserta godoc
 // @Summary List seluruh jawaban satu peserta (lintas sesi)
+// @Description Tanpa token atau dengan token peserta, soal dari section yang belum terbuka (sesi ber-section yang belum selesai) tidak ikut dikembalikan. Token admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Produce json
 // @Param id_peserta path string true "ID peserta (uuid)"
@@ -169,7 +190,7 @@ func (c *JawabanController) GetJawabanByPeserta(ctx *fiber.Ctx) error {
 		pageSizeNum = 10
 	}
 
-	resp, err := c.service.GetJawabanByPeserta(idPeserta, pageNum, pageSizeNum)
+	resp, err := c.service.GetJawabanByPeserta(idPeserta, pageNum, pageSizeNum, aksesTerbatas(ctx))
 	if err != nil {
 		return helpers.ErrorResponse(ctx, fiber.StatusInternalServerError, err.Error(), nil)
 	}
@@ -179,7 +200,7 @@ func (c *JawabanController) GetJawabanByPeserta(ctx *fiber.Ctx) error {
 
 // UpdateJawaban godoc
 // @Summary Submit/update jawaban satu soal
-// @Description Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Format jawaban sesuai jenis soal: pg 1 huruf (mis. B), pgk satu atau lebih huruf (mis. AC), bs 3 karakter B/S untuk pernyataan 1-3 (mis. BSB). Server langsung menghitung skor & is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar), 0 (0-1 benar).
+// @Description Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Format jawaban sesuai jenis soal: pg 1 huruf (mis. B), pgk satu atau lebih huruf (mis. AC), bs 3 karakter B/S untuk pernyataan 1-3 (mis. BSB). Server langsung menghitung skor & is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar), 0 (0-1 benar). Ditolak 403 jika soal berada di section yang belum terbuka (sesi ber-section yang belum selesai). Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).
 // @Tags Jawaban
 // @Accept json
 // @Produce json
@@ -188,6 +209,7 @@ func (c *JawabanController) GetJawabanByPeserta(ctx *fiber.Ctx) error {
 // @Param request body dto.UpdateJawabanRequest true "Pilihan jawaban (pg: A-E, pgk: mis. AC, bs: mis. BSB)"
 // @Success 200 {object} helpers.Response{data=dto.JawabanResponse} "Update jawaban successfully"
 // @Failure 400 {object} helpers.Response "Validasi gagal"
+// @Failure 403 {object} helpers.Response "Soal berada di section yang belum terbuka"
 // @Router /jawaban/{id} [put]
 func (c *JawabanController) UpdateJawaban(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
@@ -196,9 +218,9 @@ func (c *JawabanController) UpdateJawaban(ctx *fiber.Ctx) error {
 		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, "Invalid request format", nil)
 	}
 
-	resp, err := c.service.UpdateJawaban(id, &req)
+	resp, err := c.service.UpdateJawaban(id, &req, aksesTerbatas(ctx))
 	if err != nil {
-		return helpers.ErrorResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		return errorJawabanTulis(ctx, err)
 	}
 
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Update jawaban successfully", resp)

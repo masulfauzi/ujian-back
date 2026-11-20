@@ -32,8 +32,11 @@ type JawabanWithDetail struct {
 	IsBenar     *int    `gorm:"column:is_benar"`
 	Skor        *int    `gorm:"column:skor"`
 	AcakOpsi    int     `gorm:"column:acak_opsi"`
-	CreatedAt   string  `gorm:"column:created_at"`
-	UpdatedAt   string  `gorm:"column:updated_at"`
+	// KunciBolehTampil true jika sesi ini sudah selesai DAN jadwal sudah berakhir
+	// (jadwal.wkt_selesai + durasi menit, wall-clock WIB), sehingga kunci aman ditampilkan ke peserta.
+	KunciBolehTampil bool   `gorm:"column:kunci_boleh_tampil"`
+	CreatedAt        string `gorm:"column:created_at"`
+	UpdatedAt        string `gorm:"column:updated_at"`
 }
 
 type JawabanRepository interface {
@@ -53,10 +56,33 @@ type JawabanRepository interface {
 	SoftDeleteByNilaiID(tx *gorm.DB, nilaiID string) error
 	RestoreByNilaiID(tx *gorm.DB, nilaiID string) error
 	GetAcakOpsiByNilaiID(nilaiID string) (int, error)
+	// WithSectionFilter mengembalikan repository yang query detail-nya (GetByIDWithDetail,
+	// GetAllWithDetail, GetByNilaiID, GetByPesertaID) hanya memuat soal dari section yang sudah terbuka.
+	WithSectionFilter() JawabanRepository
 }
 
 type jawabanRepository struct {
-	db *gorm.DB
+	db            *gorm.DB
+	filterSection bool
+}
+
+// sectionTerbukaCond: baris lolos jika sesi tidak memakai section, sudah selesai,
+// atau no_urut-nya tidak melebihi akhir section aktif (frontier). Butuh join ke tabel nilai.
+const sectionTerbukaCond = `(nilai.id_section_aktif IS NULL OR nilai.wkt_selesai IS NOT NULL OR jawaban.no_urut <= (SELECT s.no_urut_akhir FROM section s WHERE s.id = nilai.id_section_aktif))`
+
+// kunciBolehTampilExpr: jadwal.wkt_selesai disimpan sebagai wall-clock WIB tanpa zona waktu,
+// jadi dibandingkan dengan now() yang dikonversi ke Asia/Jakarta.
+const kunciBolehTampilExpr = `(nilai.wkt_selesai IS NOT NULL AND jadwal.wkt_selesai + make_interval(mins => jadwal.durasi) <= (now() AT TIME ZONE 'Asia/Jakarta'))`
+
+func (r *jawabanRepository) WithSectionFilter() JawabanRepository {
+	return &jawabanRepository{db: r.db, filterSection: true}
+}
+
+func (r *jawabanRepository) sectionScope(db *gorm.DB) *gorm.DB {
+	if !r.filterSection {
+		return db
+	}
+	return db.Where(sectionTerbukaCond)
 }
 
 func NewJawabanRepository(db *gorm.DB) JawabanRepository {
@@ -115,6 +141,7 @@ func (r *jawabanRepository) GetByIDWithDetail(id string) (*JawabanWithDetail, er
 			jawaban.is_benar,
 			jawaban.skor,
 			jadwal.acak_opsi::int AS acak_opsi,
+			`+kunciBolehTampilExpr+` AS kunci_boleh_tampil,
 			jawaban.created_at,
 			jawaban.updated_at
 		`).
@@ -123,6 +150,7 @@ func (r *jawabanRepository) GetByIDWithDetail(id string) (*JawabanWithDetail, er
 		Joins("INNER JOIN nilai ON jawaban.id_nilai = nilai.id").
 		Joins("INNER JOIN jadwal ON nilai.id_jadwal = jadwal.id").
 		Where("jawaban.id = ? AND jawaban.deleted_at IS NULL", id).
+		Scopes(r.sectionScope).
 		First(&result).Error
 	if err != nil {
 		return nil, err
@@ -148,7 +176,8 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 			Joins("INNER JOIN peserta ON jawaban.id_peserta = peserta.id").
 			Joins("INNER JOIN nilai ON jawaban.id_nilai = nilai.id").
 			Joins("INNER JOIN jadwal ON nilai.id_jadwal = jadwal.id").
-			Where("jawaban.deleted_at IS NULL")
+			Where("jawaban.deleted_at IS NULL").
+			Scopes(r.sectionScope)
 		if idNilai != "" {
 			q = q.Where("jawaban.id_nilai = ?", idNilai)
 		}
@@ -191,6 +220,7 @@ func (r *jawabanRepository) GetAllWithDetail(page, pageSize int, idNilai, idPese
 			jawaban.is_benar,
 			jawaban.skor,
 			jadwal.acak_opsi::int AS acak_opsi,
+			` + kunciBolehTampilExpr + ` AS kunci_boleh_tampil,
 			jawaban.created_at,
 			jawaban.updated_at
 		`).
@@ -234,6 +264,7 @@ func (r *jawabanRepository) GetByNilaiIDInRange(idNilai string, noUrutAwal, noUr
 			jawaban.is_benar,
 			jawaban.skor,
 			jadwal.acak_opsi::int AS acak_opsi,
+			`+kunciBolehTampilExpr+` AS kunci_boleh_tampil,
 			jawaban.created_at,
 			jawaban.updated_at
 		`).

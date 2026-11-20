@@ -94,7 +94,7 @@ func (c *SoalController) CreateSoal(ctx *fiber.Ctx) error {
 
 // GetSoalByID godoc
 // @Summary Detail soal
-// @Description Jika request memakai JWT milik peserta yang sedang mengerjakan jadwal dengan acak_opsi aktif, urutan opsi jawaban akan otomatis diacak secara konsisten untuk peserta tersebut.
+// @Description Jika request memakai JWT milik peserta yang sedang mengerjakan jadwal dengan acak_opsi aktif, urutan opsi jawaban akan otomatis diacak secara konsisten untuk peserta tersebut. Field kunci dikosongkan untuk peserta atau request tanpa token; hanya admin/guru yang menerima kunci.
 // @Tags Soal
 // @Produce json
 // @Param id path string true "ID soal (uuid)"
@@ -118,16 +118,25 @@ func (c *SoalController) GetSoalByID(ctx *fiber.Ctx) error {
 		}
 	}
 
+	// Kunci hanya untuk admin/guru
+	if role, _ := ctx.Locals("role").(string); role == "" || role == "peserta" {
+		resp.Kunci = ""
+	}
+
 	return helpers.SuccessResponse(ctx, fiber.StatusOK, "Get soal successfully", resp)
 }
 
 // GetAllSoal godoc
 // @Summary List semua soal
+// @Description Hanya admin/guru (berisi kunci jawaban). Peserta mendapat 403.
 // @Tags Soal
+// @Security BearerAuth
 // @Produce json
 // @Param page query int false "Halaman" default(1)
 // @Param page_size query int false "Jumlah per halaman" default(10)
 // @Success 200 {object} helpers.Response{data=dto.SoalListResponse} "Get all soal successfully"
+// @Failure 401 {object} helpers.Response "Token tidak ada/tidak valid"
+// @Failure 403 {object} helpers.Response "Akses hanya untuk admin/guru"
 // @Failure 500 {object} helpers.Response "Gagal mengambil data"
 // @Router /soal [get]
 func (c *SoalController) GetAllSoal(ctx *fiber.Ctx) error {
@@ -154,12 +163,16 @@ func (c *SoalController) GetAllSoal(ctx *fiber.Ctx) error {
 
 // GetSoalByBankSoal godoc
 // @Summary List soal dalam satu bank soal
+// @Description Hanya admin/guru (berisi kunci jawaban). Peserta mendapat 403.
 // @Tags Soal
+// @Security BearerAuth
 // @Produce json
 // @Param bank_soal_id path string true "ID bank soal (uuid)"
 // @Param page query int false "Halaman" default(1)
 // @Param page_size query int false "Jumlah per halaman" default(10)
 // @Success 200 {object} helpers.Response{data=dto.SoalListResponse} "Get soal by bank successfully"
+// @Failure 401 {object} helpers.Response "Token tidak ada/tidak valid"
+// @Failure 403 {object} helpers.Response "Akses hanya untuk admin/guru"
 // @Failure 500 {object} helpers.Response "Gagal mengambil data"
 // @Router /soal/bank/{bank_soal_id} [get]
 func (c *SoalController) GetSoalByBankSoal(ctx *fiber.Ctx) error {

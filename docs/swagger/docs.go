@@ -1243,6 +1243,7 @@ const docTemplate = `{
         },
         "/jawaban": {
             "get": {
+                "description": "Tanpa token atau dengan token peserta, soal dari section yang belum terbuka (sesi ber-section yang belum selesai) tidak ikut dikembalikan. Token admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "produces": [
                     "application/json"
                 ],
@@ -1317,7 +1318,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Pada flow normal, baris jawaban kosong sudah dibuat otomatis saat peserta mulai ujian (lihat /nilai/mulai-ujian). Endpoint ini untuk kasus insert manual.",
+                "description": "Pada flow normal, baris jawaban kosong sudah dibuat otomatis saat peserta mulai ujian (lihat /nilai/mulai-ujian). Endpoint ini untuk kasus insert manual. Ditolak 403 jika no_urut berada di section yang belum terbuka (sesi ber-section yang belum selesai). Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1363,13 +1364,19 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
+                    },
+                    "403": {
+                        "description": "Soal berada di section yang belum terbuka",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
                     }
                 }
             }
         },
         "/jawaban/nilai/{id_nilai}": {
             "get": {
-                "description": "Dipanggil setelah mulai-ujian untuk mengambil seluruh soal (via baris jawaban) dalam satu sesi. Opsi jawaban otomatis diacak per-peserta jika acak_opsi aktif pada jadwal. Hasil terurut berdasarkan no_soal di database — untuk urutan tampil yang benar (terutama jika acak_soal aktif), frontend harus re-sort berdasarkan field no_urut. Untuk ujian yang memakai section, gunakan endpoint /jawaban/nilai/{id_nilai}/section/{id_section} agar hanya soal dalam section yang sedang aktif yang dikirim.",
+                "description": "Dipanggil setelah mulai-ujian untuk mengambil seluruh soal (via baris jawaban) dalam satu sesi. Opsi jawaban otomatis diacak per-peserta jika acak_opsi aktif pada jadwal. Hasil terurut berdasarkan no_soal di database — untuk urutan tampil yang benar (terutama jika acak_soal aktif), frontend harus re-sort berdasarkan field no_urut. Untuk ujian yang memakai section, gunakan endpoint /jawaban/nilai/{id_nilai}/section/{id_section} agar hanya soal dalam section yang sedang aktif yang dikirim. Tanpa token atau dengan token peserta, endpoint ini hanya mengembalikan soal dari section yang sudah terbuka selama sesi belum selesai; token admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "produces": [
                     "application/json"
                 ],
@@ -1419,7 +1426,7 @@ const docTemplate = `{
         },
         "/jawaban/nilai/{id_nilai}/section/{id_section}": {
             "get": {
-                "description": "Mengambil hanya soal yang termasuk dalam satu section tertentu pada sesi ujian ini. Ditolak dengan 403 jika section yang diminta urutannya lebih besar dari section aktif (frontier) sesi ini — mencegah peserta mengambil soal section berikutnya sebelum waktu minimal section saat ini terlampaui, walau memanggil API secara langsung. Section yang sudah pernah dibuka (urutan \u003c= frontier) selalu bisa diakses ulang.",
+                "description": "Mengambil hanya soal yang termasuk dalam satu section tertentu pada sesi ujian ini. Ditolak dengan 403 jika section yang diminta urutannya lebih besar dari section aktif (frontier) sesi ini — mencegah peserta mengambil soal section berikutnya sebelum waktu minimal section saat ini terlampaui, walau memanggil API secara langsung. Section yang sudah pernah dibuka (urutan \u003c= frontier) selalu bisa diakses ulang. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "produces": [
                     "application/json"
                 ],
@@ -1482,6 +1489,7 @@ const docTemplate = `{
         },
         "/jawaban/peserta/{id_peserta}": {
             "get": {
+                "description": "Tanpa token atau dengan token peserta, soal dari section yang belum terbuka (sesi ber-section yang belum selesai) tidak ikut dikembalikan. Token admin/guru melihat semua. Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "produces": [
                     "application/json"
                 ],
@@ -1542,6 +1550,7 @@ const docTemplate = `{
         },
         "/jawaban/{id}": {
             "get": {
+                "description": "Tanpa token atau dengan token peserta, jawaban untuk soal di section yang belum terbuka dianggap tidak ditemukan (404). Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "produces": [
                     "application/json"
                 ],
@@ -1591,7 +1600,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Format jawaban sesuai jenis soal: pg 1 huruf (mis. B), pgk satu atau lebih huruf (mis. AC), bs 3 karakter B/S untuk pernyataan 1-3 (mis. BSB). Server langsung menghitung skor \u0026 is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar), 0 (0-1 benar).",
+                "description": "Dipakai peserta untuk mengisi/mengganti pilihan jawaban satu soal dalam sesi ujiannya. Format jawaban sesuai jenis soal: pg 1 huruf (mis. B), pgk satu atau lebih huruf (mis. AC), bs 3 karakter B/S untuk pernyataan 1-3 (mis. BSB). Server langsung menghitung skor \u0026 is_benar dengan membandingkan ke kunci (memperhitungkan unshuffle opsi jika acak_opsi aktif; pernyataan bs tidak diacak). Skor: pg/pgk 1 jika sama persis; bs 2 (3 benar), 1 (2 benar), 0 (0-1 benar). Ditolak 403 jika soal berada di section yang belum terbuka (sesi ber-section yang belum selesai). Untuk peserta (atau tanpa token), field kunci, is_benar, dan skor dikosongkan sampai sesi selesai dan jadwal berakhir (wkt_selesai + durasi).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1641,6 +1650,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Validasi gagal",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Soal berada di section yang belum terbuka",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
@@ -3892,6 +3907,12 @@ const docTemplate = `{
         },
         "/soal": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Hanya admin/guru (berisi kunci jawaban). Peserta mendapat 403.",
                 "produces": [
                     "application/json"
                 ],
@@ -3932,6 +3953,18 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin/guru",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
                     },
                     "500": {
@@ -4094,6 +4127,12 @@ const docTemplate = `{
         },
         "/soal/bank/{bank_soal_id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Hanya admin/guru (berisi kunci jawaban). Peserta mendapat 403.",
                 "produces": [
                     "application/json"
                 ],
@@ -4141,6 +4180,18 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin/guru",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
                     },
                     "500": {
@@ -4242,7 +4293,7 @@ const docTemplate = `{
         },
         "/soal/{id}": {
             "get": {
-                "description": "Jika request memakai JWT milik peserta yang sedang mengerjakan jadwal dengan acak_opsi aktif, urutan opsi jawaban akan otomatis diacak secara konsisten untuk peserta tersebut.",
+                "description": "Jika request memakai JWT milik peserta yang sedang mengerjakan jadwal dengan acak_opsi aktif, urutan opsi jawaban akan otomatis diacak secara konsisten untuk peserta tersebut. Field kunci dikosongkan untuk peserta atau request tanpa token; hanya admin/guru yang menerima kunci.",
                 "produces": [
                     "application/json"
                 ],

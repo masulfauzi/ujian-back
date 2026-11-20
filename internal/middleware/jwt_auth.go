@@ -37,12 +37,20 @@ func JWTAuth() fiber.Handler {
 		}
 
 		ctx.Locals("user", token)
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if userID, ok := claims["user_id"].(string); ok {
+				ctx.Locals("user_id", userID)
+			}
+			if role, ok := claims["role"].(string); ok {
+				ctx.Locals("role", role)
+			}
+		}
 		return ctx.Next()
 	}
 }
 
 // JWTOptional mencoba parse JWT tapi tidak memblokir jika tidak ada/invalid.
-// user_id akan tersedia di ctx.Locals("user_id") jika token valid.
+// user_id dan role akan tersedia di ctx.Locals("user_id") / ctx.Locals("role") jika token valid.
 func JWTOptional() fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		authHeader := ctx.Get("Authorization")
@@ -68,9 +76,23 @@ func JWTOptional() fiber.Handler {
 				if userID, ok := claims["user_id"].(string); ok {
 					ctx.Locals("user_id", userID)
 				}
+				if role, ok := claims["role"].(string); ok {
+					ctx.Locals("role", role)
+				}
 			}
 		}
 
+		return ctx.Next()
+	}
+}
+
+// StaffOnly menolak (403) request dari peserta. Dipasang setelah JWTAuth, yang mengisi ctx.Locals("role").
+func StaffOnly() fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		role, _ := ctx.Locals("role").(string)
+		if role == "" || role == "peserta" {
+			return helpers.ErrorResponse(ctx, fiber.StatusForbidden, "Akses hanya untuk admin/guru", nil)
+		}
 		return ctx.Next()
 	}
 }
