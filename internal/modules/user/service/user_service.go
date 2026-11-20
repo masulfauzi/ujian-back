@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 
 	"backend/internal/constants"
 	"backend/internal/modules/user/dto"
@@ -30,21 +31,44 @@ func NewUserService(repo repository.UserRepository) UserService {
 }
 
 func (s *userService) Create(req *dto.CreateUserRequest) (*dto.UserResponse, error) {
-	existing, _ := s.repo.GetByEmail(req.Email)
-	if existing != nil {
+	username := strings.TrimSpace(req.Username)
+	if username == "" {
+		return nil, errors.New("username tidak boleh kosong")
+	}
+	if existing, _ := s.repo.GetByUsername(username); existing != nil {
+		return nil, errors.New("username sudah terdaftar")
+	}
+
+	email := strings.TrimSpace(req.Email)
+	if email == "" {
+		// Kolom email unique & not null; guru yang login via sianida tidak wajib punya email
+		email = username + "@sianida.local"
+	}
+	if existing, _ := s.repo.GetByEmail(email); existing != nil {
 		return nil, errors.New(constants.ErrDuplicateEmail)
 	}
 
-	hashedPassword, err := utils.HashPassword(req.Password)
-	if err != nil {
-		return nil, err
+	// Password kosong = login via sianida
+	hashedPassword := ""
+	if req.Password != "" {
+		hashed, err := utils.HashPassword(req.Password)
+		if err != nil {
+			return nil, err
+		}
+		hashedPassword = hashed
+	}
+
+	role := req.Role
+	if role == "" {
+		role = constants.RoleAdmin
 	}
 
 	user := &model.User{
+		Username: username,
 		Name:     req.Name,
-		Email:    req.Email,
+		Email:    email,
 		Password: hashedPassword,
-		Role:     constants.RoleUser,
+		Role:     role,
 		Status:   constants.StatusActive,
 	}
 
@@ -93,11 +117,32 @@ func (s *userService) Update(id string, req *dto.UpdateUserRequest) (*dto.UserRe
 	if req.Name != "" {
 		user.Name = req.Name
 	}
-	if req.Email != "" {
+	if req.Email != "" && req.Email != user.Email {
+		if existing, _ := s.repo.GetByEmail(req.Email); existing != nil {
+			return nil, errors.New(constants.ErrDuplicateEmail)
+		}
 		user.Email = req.Email
 	}
 	if req.Role != "" {
 		user.Role = req.Role
+	}
+	if req.Status != "" {
+		user.Status = req.Status
+	}
+	if req.Password != nil {
+		if *req.Password == "" {
+			// Pindah ke login via sianida
+			user.Password = ""
+		} else {
+			if len(*req.Password) < 6 {
+				return nil, errors.New("password minimal 6 karakter")
+			}
+			hashed, err := utils.HashPassword(*req.Password)
+			if err != nil {
+				return nil, err
+			}
+			user.Password = hashed
+		}
 	}
 
 	if err := s.repo.Update(user); err != nil {
@@ -125,12 +170,14 @@ func (s *userService) GetByEmail(email string) (*model.User, error) {
 
 func (s *userService) modelToResponse(user *model.User) *dto.UserResponse {
 	return &dto.UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Role:      user.Role,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:           user.ID,
+		Username:     user.Username,
+		Name:         user.Name,
+		Email:        user.Email,
+		Role:         user.Role,
+		Status:       user.Status,
+		LoginSianida: user.Password == "",
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
 	}
 }

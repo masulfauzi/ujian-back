@@ -19,7 +19,7 @@ const docTemplate = `{
     "paths": {
         "/auth/login": {
             "post": {
-                "description": "Login untuk user (admin/guru) maupun peserta (siswa) menggunakan username \u0026 password yang sama. Sistem otomatis mendeteksi apakah username adalah user internal atau peserta (peserta divalidasi ke API sekolah eksternal).",
+                "description": "Login untuk admin/guru maupun peserta (siswa). Jika username terdaftar di tabel users (admin/guru): akun dengan password lokal dicek ke password lokal, akun tanpa password lokal (login_sianida) dicek ke sianida; akun inactive ditolak. Jika tidak, username dicari di tabel peserta dan password divalidasi ke sianida.",
                 "consumes": [
                     "application/json"
                 ],
@@ -120,7 +120,12 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "description": "Mendaftarkan akun user (admin/guru) baru. Untuk akun peserta/siswa, gunakan proses import peserta, bukan endpoint ini.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Hanya admin. Mendaftarkan akun user dengan password lokal. Untuk mendaftarkan guru yang login memakai akun sianida, gunakan POST /api/users. Untuk akun peserta/siswa, gunakan proses import peserta.",
                 "consumes": [
                     "application/json"
                 ],
@@ -163,6 +168,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Validasi gagal atau email/username sudah terdaftar",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
@@ -4602,7 +4619,12 @@ const docTemplate = `{
         },
         "/users": {
             "get": {
-                "description": "Mengambil daftar seluruh user (admin/guru).",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Hanya admin. Mengambil daftar seluruh user (admin/guru). Field login_sianida = true berarti akun login memakai password sianida.",
                 "produces": [
                     "application/json"
                 ],
@@ -4632,6 +4654,18 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
                     "500": {
                         "description": "Gagal mengambil data",
                         "schema": {
@@ -4646,7 +4680,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Membuat akun user (admin/guru) baru.",
+                "description": "Hanya admin. Mendaftarkan username yang boleh masuk sebagai admin/guru. Jika password dikosongkan (disarankan untuk guru), login memakai username \u0026 password sianida; jika diisi, akun memakai password lokal (mis. akun cadangan). Email boleh kosong (diisi otomatis \u003cusername\u003e@sianida.local). Role default admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4656,7 +4690,7 @@ const docTemplate = `{
                 "tags": [
                     "User"
                 ],
-                "summary": "Buat user baru",
+                "summary": "Daftarkan akun admin/guru",
                 "parameters": [
                     {
                         "description": "Data user",
@@ -4688,7 +4722,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Validasi gagal",
+                        "description": "Validasi gagal atau username/email sudah terdaftar",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
@@ -4698,7 +4744,12 @@ const docTemplate = `{
         },
         "/users/{id}": {
             "get": {
-                "description": "Mengambil satu user berdasarkan ID.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Hanya admin. Mengambil satu user berdasarkan ID.",
                 "produces": [
                     "application/json"
                 ],
@@ -4734,6 +4785,18 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
                     "404": {
                         "description": "User tidak ditemukan",
                         "schema": {
@@ -4748,7 +4811,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Memperbarui data user berdasarkan ID.",
+                "description": "Hanya admin. Field yang tidak dikirim tidak diubah. status: active/inactive (inactive = tidak bisa login). password: tidak dikirim = tetap, \"\" = pindah ke login sianida, diisi = set password lokal (min 6). Admin tidak bisa menonaktifkan akunnya sendiri.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4802,6 +4865,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
                     },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
                     "404": {
                         "description": "User tidak ditemukan",
                         "schema": {
@@ -4816,7 +4891,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menghapus user berdasarkan ID.",
+                "description": "Hanya admin. Menghapus user berdasarkan ID. Admin tidak bisa menghapus akunnya sendiri.",
                 "produces": [
                     "application/json"
                 ],
@@ -4836,6 +4911,18 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "User deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak ada/tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/backend_internal_helpers.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Akses hanya untuk admin",
                         "schema": {
                             "$ref": "#/definitions/backend_internal_helpers.Response"
                         }
@@ -6234,20 +6321,30 @@ const docTemplate = `{
         "backend_internal_modules_user_dto.CreateUserRequest": {
             "type": "object",
             "required": [
-                "email",
                 "name",
-                "password"
+                "username"
             ],
             "properties": {
                 "email": {
                     "type": "string"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 255
                 },
                 "password": {
                     "type": "string",
                     "minLength": 6
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "admin"
+                    ]
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 100
                 }
             }
         },
@@ -6258,10 +6355,24 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "password": {
                     "type": "string"
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "admin"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "inactive"
+                    ]
                 }
             }
         },
@@ -6277,6 +6388,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "login_sianida": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -6287,6 +6401,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

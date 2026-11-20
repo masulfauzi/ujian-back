@@ -89,19 +89,11 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 
 func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 	user, err := s.repo.GetUserByUsername(req.Username)
-	if err == nil && utils.VerifyPassword(user.Password, req.Password) {
-		token, err := s.GenerateToken(user)
-		if err != nil {
-			return nil, err
-		}
-
-		return &dto.AuthResponse{
-			ID:    user.ID,
-			Name:  user.Name,
-			Email: user.Email,
-			Token: token,
-			Role:  user.Role,
-		}, nil
+	if err == nil {
+		return s.loginUser(user, req.Password)
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 
 	peserta, err := s.repo.GetPesertaByUsername(req.Username)
@@ -202,6 +194,42 @@ func (s *authService) issuePesertaToken(peserta *pesertamodel.Peserta) (*dto.Aut
 	}, nil
 }
 
+// loginUser memeriksa login admin/guru (tabel users). Tabel users menentukan siapa yang boleh masuk
+// dan rolenya; password diperiksa lokal jika kolom password terisi (akun cadangan), atau ke sianida
+// jika kosong (akun guru memakai username & password sianida).
+func (s *authService) loginUser(user *model.User, password string) (*dto.AuthResponse, error) {
+	if user.Status != constants.StatusActive {
+		return nil, errors.New("akun tidak aktif")
+	}
+
+	if user.Password != "" {
+		if !utils.VerifyPassword(user.Password, password) {
+			return nil, errors.New("invalid password")
+		}
+	} else {
+		isValid, err := s.validateWithExternalAPI(user.Username, password)
+		if err != nil {
+			return nil, err
+		}
+		if !isValid {
+			return nil, errors.New("invalid password")
+		}
+	}
+
+	token, err := s.GenerateToken(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.AuthResponse{
+		ID:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
+		Token: token,
+		Role:  user.Role,
+	}, nil
+}
+
 func (s *authService) validateWithExternalAPI(username, password string) (bool, error) {
 	apiURL := "https://apps.smkn2semarang.sch.id/api/login"
 
@@ -215,9 +243,11 @@ func (s *authService) validateWithExternalAPI(username, password string) (bool, 
 		return false, err
 	}
 
-	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonPayload))
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(apiURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return false, err
+		log.Printf("Login: gagal menghubungi sianida: %v", err)
+		return false, errors.New("Layanan login sekolah tidak dapat dihubungi, silakan coba lagi")
 	}
 	defer resp.Body.Close()
 

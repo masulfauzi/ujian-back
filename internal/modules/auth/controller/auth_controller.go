@@ -28,13 +28,16 @@ func NewAuthController(authService authservice.AuthService, userService userserv
 
 // Register godoc
 // @Summary Register user baru
-// @Description Mendaftarkan akun user (admin/guru) baru. Untuk akun peserta/siswa, gunakan proses import peserta, bukan endpoint ini.
+// @Description Hanya admin. Mendaftarkan akun user dengan password lokal. Untuk mendaftarkan guru yang login memakai akun sianida, gunakan POST /api/users. Untuk akun peserta/siswa, gunakan proses import peserta.
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body dto.RegisterRequest true "Data registrasi"
 // @Success 201 {object} helpers.Response{data=dto.AuthResponse} "Register successfully"
+// @Security BearerAuth
 // @Failure 400 {object} helpers.Response "Validasi gagal atau email/username sudah terdaftar"
+// @Failure 401 {object} helpers.Response "Token tidak ada/tidak valid"
+// @Failure 403 {object} helpers.Response "Akses hanya untuk admin"
 // @Router /auth/register [post]
 func (c *AuthController) Register(ctx *fiber.Ctx) error {
 	var req dto.RegisterRequest
@@ -57,7 +60,7 @@ func (c *AuthController) Register(ctx *fiber.Ctx) error {
 
 // Login godoc
 // @Summary Login
-// @Description Login untuk user (admin/guru) maupun peserta (siswa) menggunakan username & password yang sama. Sistem otomatis mendeteksi apakah username adalah user internal atau peserta (peserta divalidasi ke API sekolah eksternal).
+// @Description Login untuk admin/guru maupun peserta (siswa). Jika username terdaftar di tabel users (admin/guru): akun dengan password lokal dicek ke password lokal, akun tanpa password lokal (login_sianida) dicek ke sianida; akun inactive ditolak. Jika tidak, username dicari di tabel peserta dan password divalidasi ke sianida.
 // @Tags Auth
 // @Accept json
 // @Produce json

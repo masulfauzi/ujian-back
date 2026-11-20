@@ -16,11 +16,12 @@ func SetupUserRoutes(app *fiber.App, db *gorm.DB) {
 	ctrl := controller.NewUserController(svc)
 
 	api := app.Group("/api")
-	users := api.Group("/users")
+	// Semua endpoint kelola user hanya untuk admin
+	users := api.Group("/users", middleware.JWTAuth(), middleware.AdminOnly())
 
 	users.Get("/", ctrl.GetAll)
 	users.Get("/:id", ctrl.GetByID)
-	users.Post("/", middleware.JWTAuth(), ctrl.Create)
-	users.Put("/:id", middleware.JWTAuth(), ctrl.Update)
-	users.Delete("/:id", middleware.JWTAuth(), ctrl.Delete)
+	users.Post("/", ctrl.Create)
+	users.Put("/:id", ctrl.Update)
+	users.Delete("/:id", ctrl.Delete)
 }

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"backend/internal/helpers"
+	"backend/internal/middleware"
 	jadwalrepo "backend/internal/modules/jadwal/repository"
 	"backend/internal/modules/soal/dto"
 	"backend/internal/modules/soal/service"
@@ -119,7 +120,7 @@ func (c *SoalController) GetSoalByID(ctx *fiber.Ctx) error {
 	}
 
 	// Kunci hanya untuk admin/guru
-	if role, _ := ctx.Locals("role").(string); role == "" || role == "peserta" {
+	if role, _ := ctx.Locals("role").(string); !middleware.IsAdmin(role) {
 		resp.Kunci = ""
 	}
 

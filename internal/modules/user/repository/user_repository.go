@@ -11,6 +11,7 @@ type UserRepository interface {
 	GetAll() ([]model.User, error)
 	GetByID(id string) (*model.User, error)
 	GetByEmail(email string) (*model.User, error)
+	GetByUsername(username string) (*model.User, error)
 	Update(user *model.User) error
 	Delete(id string) error
 }
@@ -29,7 +30,7 @@ func (r *userRepository) Create(user *model.User) error {
 
 func (r *userRepository) GetAll() ([]model.User, error) {
 	var users []model.User
-	err := r.db.Find(&users).Error
+	err := r.db.Order("username ASC").Find(&users).Error
 	return users, err
 }
 
@@ -45,6 +46,15 @@ func (r *userRepository) GetByID(id string) (*model.User, error) {
 func (r *userRepository) GetByEmail(email string) (*model.User, error) {
 	var user model.User
 	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) GetByUsername(username string) (*model.User, error) {
+	var user model.User
+	err := r.db.Where("username = ?", username).First(&user).Error
 	if err != nil {
 		return nil, err
 	}

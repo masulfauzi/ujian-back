@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"backend/configs"
+	"backend/internal/constants"
 	"backend/internal/helpers"
 
 	"github.com/gofiber/fiber/v2"
@@ -86,12 +87,17 @@ func JWTOptional() fiber.Handler {
 	}
 }
 
-// StaffOnly menolak (403) request dari peserta. Dipasang setelah JWTAuth, yang mengisi ctx.Locals("role").
-func StaffOnly() fiber.Handler {
+// IsAdmin bernilai true untuk role admin (termasuk guru yang didaftarkan sebagai admin).
+func IsAdmin(role string) bool {
+	return role == constants.RoleAdmin
+}
+
+// AdminOnly menolak (403) request selain admin. Dipasang setelah JWTAuth, yang mengisi ctx.Locals("role").
+func AdminOnly() fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		role, _ := ctx.Locals("role").(string)
-		if role == "" || role == "peserta" {
-			return helpers.ErrorResponse(ctx, fiber.StatusForbidden, "Akses hanya untuk admin/guru", nil)
+		if !IsAdmin(role) {
+			return helpers.ErrorResponse(ctx, fiber.StatusForbidden, "Akses hanya untuk admin", nil)
 		}
 		return ctx.Next()
 	}

@@ -20,9 +20,9 @@ func SetupSoalRoutes(app *fiber.App, db *gorm.DB) {
 	api := app.Group("/api")
 	soal := api.Group("/soal")
 
-	// List soal berisi kunci: hanya admin/guru
-	soal.Get("/", middleware.JWTAuth(), middleware.StaffOnly(), ctrl.GetAllSoal)
-	soal.Get("/bank/:bank_soal_id", middleware.JWTAuth(), middleware.StaffOnly(), ctrl.GetSoalByBankSoal)
+	// List soal berisi kunci: hanya admin (guru didaftarkan sebagai admin)
+	soal.Get("/", middleware.JWTAuth(), middleware.AdminOnly(), ctrl.GetAllSoal)
+	soal.Get("/bank/:bank_soal_id", middleware.JWTAuth(), middleware.AdminOnly(), ctrl.GetSoalByBankSoal)
 
 	// Protected endpoints (write operations)
 	soal.Post("/", middleware.JWTAuth(), ctrl.CreateSoal)

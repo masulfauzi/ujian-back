@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"backend/internal/helpers"
+	"backend/internal/middleware"
 	"backend/internal/modules/jawaban/dto"
 	"backend/internal/modules/jawaban/service"
 
@@ -21,11 +22,11 @@ func NewJawabanController(service service.JawabanService) *JawabanController {
 
 // aksesTerbatas bernilai true untuk peserta atau request tanpa token valid: kunci/is_benar/skor
 // dikosongkan sampai jadwal berakhir dan soal dari section yang belum terbuka disembunyikan.
-// Admin/guru (role selain peserta) melihat semua. Membaca ctx.Locals("role") yang diisi
+// Hanya admin (termasuk guru) yang melihat semua. Membaca ctx.Locals("role") yang diisi
 // middleware.JWTAuth / middleware.JWTOptional.
 func aksesTerbatas(ctx *fiber.Ctx) bool {
 	role, _ := ctx.Locals("role").(string)
-	return role == "" || role == "peserta"
+	return !middleware.IsAdmin(role)
 }
 
 // errorJawabanTulis memetakan error simpan jawaban: section belum terbuka -> 403, lainnya -> 400.

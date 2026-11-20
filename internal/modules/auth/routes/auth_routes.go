@@ -29,7 +29,8 @@ func SetupAuthRoutes(app *fiber.App, db *gorm.DB) {
 	api := app.Group("/api")
 	auth := api.Group("/auth")
 
-	auth.Post("/register", ctrl.Register)
+	// Register hanya untuk admin (sebelumnya publik). Untuk mendaftarkan guru gunakan POST /api/users.
+	auth.Post("/register", middleware.JWTAuth(), middleware.AdminOnly(), ctrl.Register)
 	auth.Post("/login", ctrl.Login)
 	auth.Post("/sso", ctrl.SSOLogin)
 	auth.Get("/me", middleware.JWTAuth(), ctrl.GetCurrentUser)

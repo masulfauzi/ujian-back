@@ -922,22 +922,39 @@ definitions:
       email:
         type: string
       name:
+        maxLength: 255
         type: string
       password:
         minLength: 6
         type: string
+      role:
+        enum:
+        - admin
+        type: string
+      username:
+        maxLength: 100
+        type: string
     required:
-    - email
     - name
-    - password
+    - username
     type: object
   backend_internal_modules_user_dto.UpdateUserRequest:
     properties:
       email:
         type: string
       name:
+        maxLength: 255
+        type: string
+      password:
         type: string
       role:
+        enum:
+        - admin
+        type: string
+      status:
+        enum:
+        - active
+        - inactive
         type: string
     type: object
   backend_internal_modules_user_dto.UserResponse:
@@ -948,6 +965,8 @@ definitions:
         type: string
       id:
         type: string
+      login_sianida:
+        type: boolean
       name:
         type: string
       role:
@@ -955,6 +974,8 @@ definitions:
       status:
         type: string
       updated_at:
+        type: string
+      username:
         type: string
     type: object
 host: localhost:3000
@@ -970,9 +991,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Login untuk user (admin/guru) maupun peserta (siswa) menggunakan
-        username & password yang sama. Sistem otomatis mendeteksi apakah username
-        adalah user internal atau peserta (peserta divalidasi ke API sekolah eksternal).
+      description: 'Login untuk admin/guru maupun peserta (siswa). Jika username terdaftar
+        di tabel users (admin/guru): akun dengan password lokal dicek ke password
+        lokal, akun tanpa password lokal (login_sianida) dicek ke sianida; akun inactive
+        ditolak. Jika tidak, username dicari di tabel peserta dan password divalidasi
+        ke sianida.'
       parameters:
       - description: Kredensial login
         in: body
@@ -1032,8 +1055,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Mendaftarkan akun user (admin/guru) baru. Untuk akun peserta/siswa,
-        gunakan proses import peserta, bukan endpoint ini.
+      description: Hanya admin. Mendaftarkan akun user dengan password lokal. Untuk
+        mendaftarkan guru yang login memakai akun sianida, gunakan POST /api/users.
+        Untuk akun peserta/siswa, gunakan proses import peserta.
       parameters:
       - description: Data registrasi
         in: body
@@ -1057,6 +1081,16 @@ paths:
           description: Validasi gagal atau email/username sudah terdaftar
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+      security:
+      - BearerAuth: []
       summary: Register user baru
       tags:
       - Auth
@@ -3852,7 +3886,8 @@ paths:
       - UjianToken
   /users:
     get:
-      description: Mengambil daftar seluruh user (admin/guru).
+      description: Hanya admin. Mengambil daftar seluruh user (admin/guru). Field
+        login_sianida = true berarti akun login memakai password sianida.
       produces:
       - application/json
       responses:
@@ -3867,17 +3902,31 @@ paths:
                     $ref: '#/definitions/backend_internal_modules_user_dto.UserResponse'
                   type: array
               type: object
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
         "500":
           description: Gagal mengambil data
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
+      security:
+      - BearerAuth: []
       summary: List semua user
       tags:
       - User
     post:
       consumes:
       - application/json
-      description: Membuat akun user (admin/guru) baru.
+      description: Hanya admin. Mendaftarkan username yang boleh masuk sebagai admin/guru.
+        Jika password dikosongkan (disarankan untuk guru), login memakai username
+        & password sianida; jika diisi, akun memakai password lokal (mis. akun cadangan).
+        Email boleh kosong (diisi otomatis <username>@sianida.local). Role default
+        admin.
       parameters:
       - description: Data user
         in: body
@@ -3898,17 +3947,26 @@ paths:
                   $ref: '#/definitions/backend_internal_modules_user_dto.UserResponse'
               type: object
         "400":
-          description: Validasi gagal
+          description: Validasi gagal atau username/email sudah terdaftar
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
       security:
       - BearerAuth: []
-      summary: Buat user baru
+      summary: Daftarkan akun admin/guru
       tags:
       - User
   /users/{id}:
     delete:
-      description: Menghapus user berdasarkan ID.
+      description: Hanya admin. Menghapus user berdasarkan ID. Admin tidak bisa menghapus
+        akunnya sendiri.
       parameters:
       - description: ID user (uuid)
         in: path
@@ -3920,6 +3978,14 @@ paths:
       responses:
         "200":
           description: User deleted successfully
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
         "404":
@@ -3936,7 +4002,7 @@ paths:
       tags:
       - User
     get:
-      description: Mengambil satu user berdasarkan ID.
+      description: Hanya admin. Mengambil satu user berdasarkan ID.
       parameters:
       - description: ID user (uuid)
         in: path
@@ -3955,17 +4021,30 @@ paths:
                 data:
                   $ref: '#/definitions/backend_internal_modules_user_dto.UserResponse'
               type: object
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
         "404":
           description: User tidak ditemukan
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
+      security:
+      - BearerAuth: []
       summary: Detail user
       tags:
       - User
     put:
       consumes:
       - application/json
-      description: Memperbarui data user berdasarkan ID.
+      description: 'Hanya admin. Field yang tidak dikirim tidak diubah. status: active/inactive
+        (inactive = tidak bisa login). password: tidak dikirim = tetap, "" = pindah
+        ke login sianida, diisi = set password lokal (min 6). Admin tidak bisa menonaktifkan
+        akunnya sendiri.'
       parameters:
       - description: ID user (uuid)
         in: path
@@ -3992,6 +4071,14 @@ paths:
               type: object
         "400":
           description: Validasi gagal
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "401":
+          description: Token tidak ada/tidak valid
+          schema:
+            $ref: '#/definitions/backend_internal_helpers.Response'
+        "403":
+          description: Akses hanya untuk admin
           schema:
             $ref: '#/definitions/backend_internal_helpers.Response'
         "404":
